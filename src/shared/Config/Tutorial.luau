@@ -20,14 +20,19 @@ export type EnemyUnit = {
 
 local Tutorial = {}
 
-Tutorial.gold = 160
+Tutorial.gold = 150
 
 -- Exército do bot. As posições são locais à arena e têm de caber na metade da
 -- equipa B (Z positivo); o BotService valida e avisa se alguma ficar de fora.
+-- Quatro soldados a frente e um arqueiro atras: ja obriga a pensar em numero
+-- e em avancar, mas continua a ganhar-se com folga. A primeira partida de um
+-- jogador decide se ha segunda.
 local enemy: { EnemyUnit } = {
-	{ troopId = "soldier", x = -7, z = 20 },
-	{ troopId = "soldier", x = 0, z = 20 },
-	{ troopId = "soldier", x = 7, z = 20 },
+	{ troopId = "soldier", x = -11, z = 20 },
+	{ troopId = "soldier", x = -4, z = 20 },
+	{ troopId = "soldier", x = 4, z = 20 },
+	{ troopId = "soldier", x = 11, z = 20 },
+	{ troopId = "archer", x = 0, z = 31 },
 }
 
 Tutorial.enemy = enemy

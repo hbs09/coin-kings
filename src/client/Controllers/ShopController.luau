@@ -36,6 +36,16 @@ type Card = {
 local cards: { Card } = {}
 local selected: Types.TroopId? = nil
 
+-- O PlacementController regista-se aqui para poder arrastar direto do cartao
+-- para o campo, num gesto so. E o ShopController a avisar, e nao o contrario,
+-- para nao haver dependencia circular entre os dois.
+type DragListener = (troopId: Types.TroopId, input: InputObject) -> ()
+local dragListeners: { DragListener } = {}
+
+function ShopController.onCardDragStart(listener: DragListener)
+	table.insert(dragListeners, listener)
+end
+
 local function isAvailable(troopId: Types.TroopId): boolean
 	return table.find(State.troopPool, troopId) ~= nil
 end
@@ -54,15 +64,22 @@ local function select(troopId: Types.TroopId)
 	if not isAvailable(troopId) then
 		return
 	end
-	selected = if selected == troopId then nil else troopId
+	-- Escolher sem alternar: quem arrasta de um cartao espera sempre sair com
+	-- essa tropa na mao, nao com a selecao desligada.
+	selected = troopId
 	ShopController.refresh()
 end
 
 function ShopController.refresh()
+	-- No tutorial so se ve o que ja e do jogador: quem esta a aprender nao
+	-- precisa de oito cartoes, precisa de tres.
+	local showLocked = State.mode ~= "tutorial"
+
 	for _, card in cards do
-		-- As bloqueadas ficam a vista, apagadas e com a arena que as da: e o
-		-- que faz a arena seguinte apetecer.
+		-- Fora do tutorial as bloqueadas ficam a vista, apagadas e com a arena
+		-- que as da: e o que faz a arena seguinte apetecer.
 		local available = isAvailable(card.troopId)
+		card.button.Visible = available or showLocked
 		local affordable = available and State.gold >= card.def.cost
 		local isSelected = selected == card.troopId
 
@@ -153,8 +170,21 @@ local function buildCard(parent: Instance, troopId: Types.TroopId, orderIndex: n
 		Parent = button,
 	}) :: TextLabel
 
-	button.MouseButton1Click:Connect(function()
+	-- InputBegan em vez de MouseButton1Click: precisamos do InputObject para
+	-- seguir o mesmo toque ate ao campo.
+	button.InputBegan:Connect(function(input: InputObject)
+		local inputType = input.UserInputType
+		if inputType ~= Enum.UserInputType.MouseButton1 and inputType ~= Enum.UserInputType.Touch then
+			return
+		end
+		if not isAvailable(troopId) then
+			return
+		end
+
 		select(troopId)
+		for _, listener in dragListeners do
+			listener(troopId, input)
+		end
 	end)
 
 	table.insert(cards, {

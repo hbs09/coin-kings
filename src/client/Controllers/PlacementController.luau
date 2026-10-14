@@ -3,8 +3,8 @@
 	PlacementController — comprar e posicionar, com rato ou com o dedo.
 
 	Como funciona:
-	- Escolher uma tropa na loja e arrastar para a propria metade coloca-a
-	  (soltar e que envia a intencao; um toque simples tambem serve).
+	- Arrastar um cartao da loja direto para a propria metade coloca a tropa,
+	  num gesto so. Um toque no cartao escolhe-a, e depois toca-se no campo.
 	- Arrastar uma unidade ja colocada move-a, de graca, durante a preparacao.
 	- No modo "Vender" (ou com o botao direito), tocar numa unidade devolve o ouro.
 
@@ -40,6 +40,11 @@ local ghostTroopId: Types.TroopId? = nil
 -- Arrasto em curso
 local activeInput: InputObject? = nil
 local movingUnitId: number? = nil
+local dragStart: Vector2? = nil
+-- Um arrasto que comecou num cartao so coloca se o dedo andou: senao, um
+-- simples toque no cartao largava uma unidade atras do painel da loja.
+local dragFromCard = false
+local DRAG_THRESHOLD = 14
 
 -- Ecra -> arena ---------------------------------------------------------------
 
@@ -216,8 +221,22 @@ end
 local function endDrag()
 	activeInput = nil
 	movingUnitId = nil
+	dragStart = nil
+	dragFromCard = false
 	destroyGhost()
 	redrawArmy()
+end
+
+-- Arrasto comecado num cartao da loja (ShopController avisa).
+local function beginCardDrag(_troopId: Types.TroopId, input: InputObject)
+	if not State.canEditArmy() then
+		return
+	end
+	activeInput = input
+	dragStart = Vector2.new(input.Position.X, input.Position.Y)
+	dragFromCard = true
+	movingUnitId = nil
+	updateGhost(input.Position)
 end
 
 local function onInputBegan(input: InputObject, processed: boolean)
@@ -247,37 +266,49 @@ local function onInputBegan(input: InputObject, processed: boolean)
 	end
 
 	activeInput = input
+	dragStart = Vector2.new(input.Position.X, input.Position.Y)
+	dragFromCard = false
 
-	if not ShopController.getSelected() then
-		local entry = unitAt(point)
-		if entry then
-			movingUnitId = entry.id
-			redrawArmy()
-		end
+	-- Pegar numa unidade ja colocada tem prioridade: e o gesto obvio quando se
+	-- carrega mesmo em cima dela, mesmo com uma tropa escolhida na loja.
+	local entry = unitAt(point)
+	if entry then
+		movingUnitId = entry.id
+		redrawArmy()
 	end
 
 	updateGhost(input.Position)
 end
 
-local function onInputChanged(input: InputObject, processed: boolean)
-	local inputType = input.UserInputType
-	if inputType == Enum.UserInputType.MouseMovement then
-		-- O rato mostra sempre onde vai cair.
+local function onInputChanged(input: InputObject, _processed: boolean)
+	-- Se o gesto e o nosso, seguimo-lo ate ao fim: um arrasto que comeca num
+	-- cartao vem marcado como "processado" pela interface, e e suposto.
+	if input == activeInput then
 		updateGhost(input.Position)
 		return
 	end
-	if inputType == Enum.UserInputType.Touch and input == activeInput and not processed then
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		-- O rato mostra sempre onde vai cair.
 		updateGhost(input.Position)
 	end
 end
 
-local function onInputEnded(input: InputObject, processed: boolean)
+local function onInputEnded(input: InputObject, _processed: boolean)
 	if input ~= activeInput then
 		return
 	end
-	if not processed and State.canEditArmy() then
-		commit(input.Position)
+
+	if State.canEditArmy() then
+		local start = dragStart
+		local travelled = if start
+			then (Vector2.new(input.Position.X, input.Position.Y) - start).Magnitude
+			else 0
+		-- Do cartao, so coloca quem arrastou. Do campo, um toque chega.
+		if not dragFromCard or travelled >= DRAG_THRESHOLD then
+			commit(input.Position)
+		end
 	end
+
 	endDrag()
 end
 
@@ -309,6 +340,8 @@ function PlacementController.start()
 		endDrag()
 		clearVisuals()
 	end)
+
+	ShopController.onCardDragStart(beginCardDrag)
 
 	UserInputService.InputBegan:Connect(onInputBegan)
 	UserInputService.InputChanged:Connect(onInputChanged)

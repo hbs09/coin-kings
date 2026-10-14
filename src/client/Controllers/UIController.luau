@@ -149,10 +149,13 @@ local function buildTopBar(root: ScreenGui)
 end
 
 local function buildResourceBar(root: ScreenGui)
+	-- Em cima a esquerda fica por baixo da barra do Roblox (menu e chat), por
+	-- isso o ouro vive ao pe da loja, que e para onde se olha ao comprar.
 	local bar = make("Frame", {
 		Name = "Resources",
-		Position = UDim2.new(0, 12, 0, 12),
-		Size = UDim2.new(0, 170, 0, 62),
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 12, 1, -150),
+		Size = UDim2.new(0, 190, 0, 56),
 		BackgroundColor3 = colors.panel,
 		BackgroundTransparency = 0.15,
 		BorderSizePixel = 0,
@@ -169,7 +172,7 @@ local function buildResourceBar(root: ScreenGui)
 		Font = UIUtil.font,
 		Text = "",
 		TextColor3 = colors.accent,
-		TextSize = 22,
+		TextSize = 24,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = bar,
 	}) :: TextLabel
@@ -263,7 +266,8 @@ local function buildOverlays(root: ScreenGui)
 	hintLabel = make("TextLabel", {
 		Name = "Hint",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -150),
+		-- Acima do painel do ouro, que agora vive em cima da loja.
+		Position = UDim2.new(0.5, 0, 1, -212),
 		Size = UDim2.new(0, 420, 0, 22),
 		BackgroundTransparency = 1,
 		Font = UIUtil.fontRegular,
