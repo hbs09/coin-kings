@@ -13,10 +13,13 @@
 	As coordenadas sao sempre locais a arena; o deslocamento do slot e assunto
 	do cliente, na altura de desenhar.
 
-	IA desta fase: procurar o inimigo vivo mais proximo, aproximar-se ate ao
+	IA de combate: procurar o inimigo vivo mais proximo, aproximar-se ate ao
 	alcance e atacar respeitando o attackSpeed. O dano usa bonusVs e, quando a
 	tropa tem aoeRadius, atinge todos os inimigos em volta do alvo.
-	(O healer entra no MVP, com a sua propria procura de aliado ferido.)
+
+	IA de suporte (tropas com healAmount): procurar o aliado ferido mais proximo
+	e cura-lo; sem feridos, acompanha o grupo por tras em vez de avancar para o
+	inimigo. Nao ataca.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -146,6 +149,76 @@ local function nearestEnemy(session: Session, unit: Unit): Unit?
 	return best
 end
 
+-- Aliado ferido mais proximo (ignora-se a si proprio).
+local function nearestWoundedAlly(session: Session, unit: Unit): Unit?
+	local best: Unit? = nil
+	local bestDistance = math.huge
+	for _, id in session.order do
+		local other = session.units[id]
+		if other and other.alive and other.team == unit.team and other.id ~= unit.id and other.hp < other.maxHp then
+			local dx = other.x - unit.x
+			local dz = other.z - unit.z
+			local distance = dx * dx + dz * dz
+			if distance < bestDistance then
+				bestDistance = distance
+				best = other
+			end
+		end
+	end
+	return best
+end
+
+-- Aliado de combate mais proximo, para o curandeiro ter quem seguir.
+-- Ignora outros curandeiros: dois curandeiros nao se seguem um ao outro.
+local function nearestFighterAlly(session: Session, unit: Unit): Unit?
+	local best: Unit? = nil
+	local bestDistance = math.huge
+	for _, id in session.order do
+		local other = session.units[id]
+		if
+			other
+			and other.alive
+			and other.team == unit.team
+			and other.id ~= unit.id
+			and not other.def.healAmount
+		then
+			local dx = other.x - unit.x
+			local dz = other.z - unit.z
+			local distance = dx * dx + dz * dz
+			if distance < bestDistance then
+				bestDistance = distance
+				best = other
+			end
+		end
+	end
+	return best
+end
+
+-- Aproxima-se de `other` sem lhe colar: para a `stopDistance` de distancia.
+local function moveToward(unit: Unit, other: Unit, dt: number, stopDistance: number)
+	local dx = other.x - unit.x
+	local dz = other.z - unit.z
+	local distance = math.sqrt(dx * dx + dz * dz)
+	if distance <= 1e-4 then
+		return
+	end
+	local stepLength = math.min(unit.def.moveSpeed * dt, distance - stopDistance)
+	if stepLength > 0 then
+		unit.x += dx / distance * stepLength
+		unit.z += dz / distance * stepLength
+	end
+end
+
+local function reachBetween(unit: Unit, other: Unit): number
+	return unit.def.range + unit.def.radius + other.def.radius
+end
+
+local function distanceBetween(unit: Unit, other: Unit): number
+	local dx = other.x - unit.x
+	local dz = other.z - unit.z
+	return math.sqrt(dx * dx + dz * dz)
+end
+
 local function applyDamage(attacker: Unit, victim: Unit, dead: { number })
 	local multiplier = attacker.def.bonusVs[victim.troopId] or 1
 	victim.hp -= attacker.def.damage * multiplier
@@ -173,6 +246,38 @@ local function attack(session: Session, unit: Unit, target: Unit, dead: { number
 			if dx * dx + dz * dz <= aoeRadius * aoeRadius then
 				applyDamage(unit, other, dead)
 			end
+		end
+	end
+end
+
+local function heal(unit: Unit, patient: Unit)
+	unit.cooldown = 1 / unit.def.attackSpeed
+	local amount = unit.def.healAmount or 0
+	patient.hp = math.min(patient.maxHp, patient.hp + amount)
+end
+
+-- Curandeiro: trata do ferido mais proximo; sem feridos, segue o grupo.
+local function stepSupport(session: Session, unit: Unit, dt: number)
+	local patient = nearestWoundedAlly(session, unit)
+	if patient then
+		local reach = reachBetween(unit, patient)
+		if distanceBetween(unit, patient) <= reach then
+			if unit.cooldown <= 0 then
+				heal(unit, patient)
+			end
+		else
+			moveToward(unit, patient, dt, reach)
+		end
+		return
+	end
+
+	-- Ninguem ferido: fica atras do aliado de combate mais proximo, a meio
+	-- alcance, para nao ir sozinho contra o inimigo.
+	local anchor = nearestFighterAlly(session, unit)
+	if anchor then
+		local keep = unit.def.range * 0.6
+		if distanceBetween(unit, anchor) > keep then
+			moveToward(unit, anchor, dt, keep)
 		end
 	end
 end
@@ -222,22 +327,18 @@ local function step(session: Session, dt: number, dead: { number })
 		if unit and unit.alive then
 			unit.cooldown = math.max(0, unit.cooldown - dt)
 
-			local target = nearestEnemy(session, unit)
-			if target then
-				local dx = target.x - unit.x
-				local dz = target.z - unit.z
-				local distance = math.sqrt(dx * dx + dz * dz)
-				local reach = unit.def.range + unit.def.radius + target.def.radius
-
-				if distance <= reach then
-					if unit.cooldown <= 0 then
-						attack(session, unit, target, dead)
-					end
-				elseif distance > 1e-4 then
-					local stepLength = math.min(unit.def.moveSpeed * dt, distance - reach)
-					if stepLength > 0 then
-						unit.x += dx / distance * stepLength
-						unit.z += dz / distance * stepLength
+			if unit.def.healAmount then
+				stepSupport(session, unit, dt)
+			else
+				local target = nearestEnemy(session, unit)
+				if target then
+					local reach = reachBetween(unit, target)
+					if distanceBetween(unit, target) <= reach then
+						if unit.cooldown <= 0 then
+							attack(session, unit, target, dead)
+						end
+					else
+						moveToward(unit, target, dt, reach)
 					end
 				end
 			end

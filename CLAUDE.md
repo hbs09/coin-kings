@@ -71,7 +71,9 @@ O que já existe está no [README.md](README.md); o resto desta lista é o desti
 | giant | 250 | elite | soldier | spearman em massa |
 
 Cada tropa define: `hp, damage, range, attackSpeed, moveSpeed, aoeRadius?, bonusVs: {[id]: multiplier}`.
-IA: procura o inimigo válido mais próximo, aproxima-se até ao alcance e ataca; o curandeiro procura o aliado ferido mais próximo.
+IA: procura o inimigo válido mais próximo, aproxima-se até ao alcance e ataca. O curandeiro (tropas com `healAmount`) não ataca: trata o aliado ferido mais próximo e, sem feridos, acompanha o aliado de combate mais próximo por trás, a meio alcance.
+
+**A vigiar no balanceamento:** o curandeiro cura ~19,6 hp/s por 100 de ouro, de forma sustentada. Se em playtest os muros de escudeiro com 2 curandeiros ficarem imbatíveis, baixar `healAmount` em `Config/Troops` — é uma linha.
 
 ## Feitiços (Config/Spells) — máx. 2 por ronda
 meteor 150 (dano em área pequena) · divine_shield 120 (5 s de invulnerabilidade em área) · freeze 100 (3 s de paragem em área) · fury 130 (+40% de velocidade e dano durante 6 s). Lançados durante a batalha; o servidor valida o cooldown e a área.
@@ -114,7 +116,7 @@ Battle Pass, skins de tropas (a mesma hitbox), efeitos de feitiço, emotes, band
 
 ## Roadmap — trabalhar fase a fase e não avançar sem cumprir o critério
 1. **Protótipo — FEITO (14/10/2026).** Mapa plano com duas metades; soldier, archer e knight; compra validada no servidor; posicionamento por arrastar; batalha até um lado morrer; 1 ronda. *Critério cumprido:* 2 jogadores locais jogaram uma partida completa sem erros na Output.
-2. **MVP:** ~~vários jogos por servidor~~ (feito), melhor de 3 (só mudar `Config/Match`), as 8 tropas (falta a IA do curandeiro), 2 feitiços, DataService, campanha PvE com os primeiros capítulos, Elo e leaderboard, UI para telemóvel. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
+2. **MVP:** ~~vários jogos por servidor~~, ~~melhor de 3~~, ~~as 8 tropas~~ (feitos); faltam 2 feitiços, DataService, campanha PvE com os primeiros capítulos, Elo e leaderboard, UI para telemóvel. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
 3. **Lançamento:** 4 feitiços, mapa com rio e ponte, modo casual, missões, nível de conta, mais capítulos de campanha, analytics completo (`AnalyticsService`: funil do tutorial, taxa de vitória por tropa, revanche).
 4. **Temporada 1:** Battle Pass, escalões e temporadas, amigos, espectador, replays, eventos.
 

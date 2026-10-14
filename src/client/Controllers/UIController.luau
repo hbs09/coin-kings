@@ -188,11 +188,13 @@ local function buildBottom(root: ScreenGui)
 		Parent = root,
 	}) :: Frame
 
+	-- Ocupa a largura toda menos a coluna dos botoes, a direita. Os cartoes
+	-- deslizam na horizontal quando nao cabem (ShopController).
 	shopContainer = make("Frame", {
 		Name = "Shop",
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, 0),
-		Size = UDim2.new(0, 360, 0, 112),
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 0, 1, 0),
+		Size = UDim2.new(1, -144, 0, 112),
 		BackgroundColor3 = colors.panel,
 		BackgroundTransparency = 0.1,
 		BorderSizePixel = 0,

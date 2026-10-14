@@ -8,10 +8,10 @@ orçamento é igual para os dois lados e ganha quem decide melhor.
 O contexto completo, a estratégia e os critérios de paragem estão em
 [CLAUDE.md](CLAUDE.md).
 
-**Estado: fase 1 do roadmap (protótipo) — concluída.** Mapa plano com duas
-metades, 3 tropas (soldier, archer, knight), compra e posicionamento validados
-no servidor, 1 ronda até um lado morrer. Testado em Studio com 2 jogadores.
-Já com a arquitetura de **6 partidas em paralelo por servidor**.
+**Estado: fase 2 (MVP) em curso.** Mapa plano com duas metades, **as 8 tropas**,
+compra e posicionamento validados no servidor, **melhor de 3** com bónus de 150
+para quem perde a ronda, e **6 partidas em paralelo por servidor**. Faltam os
+feitiços, a campanha PvE, o DataService e o Elo.
 
 ## Arrancar
 
@@ -81,9 +81,9 @@ Pela ordem definida no [CLAUDE.md](CLAUDE.md):
 
 1. ~~Vários jogos por servidor~~ — **feito**: 6 partidas em paralelo, uma arena
    por slot. Falta pôr **Max Players = 12** nas Game Settings do lugar.
-2. **Melhor de 3 e as 8 tropas** — em `shared/Config/Match.luau` basta
-   `roundsToWin = 2`, `maxRounds = 3` e o `troopPool` completo; falta só a IA do
-   curandeiro (procura de aliado ferido) no `CombatService`.
+2. ~~Melhor de 3 e as 8 tropas~~ — **feito**: `roundsToWin = 2`,
+   `maxRounds = 3`, as 8 tropas no `troopPool` e a IA de suporte do curandeiro
+   no `CombatService`. A loja passou a deslizar na horizontal.
 3. **Campanha PvE** (`BotService` + `Config/Campaign`), `DataService`,
    `RankService`, 2 feitiços e analytics mínimo.
 

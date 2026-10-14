@@ -132,24 +132,40 @@ end
 function ShopController.init()
 	local container = UIController.getShopContainer()
 
+	-- Com 8 tropas os cartoes nao cabem num telemovel: deslizam na horizontal.
+	local scroller = make("ScrollingFrame", {
+		Name = "Cards",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollingDirection = Enum.ScrollingDirection.X,
+		AutomaticCanvasSize = Enum.AutomaticSize.X,
+		CanvasSize = UDim2.new(),
+		ScrollBarThickness = 4,
+		ScrollBarImageTransparency = 0.4,
+		Parent = container,
+	}) :: ScrollingFrame
+
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Horizontal
-	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	layout.VerticalAlignment = Enum.VerticalAlignment.Center
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Padding = UDim.new(0, 8)
-	layout.Parent = container
+	layout.Parent = scroller
 
 	local orderIndex = 0
 	for _, troopId in Troops.order do
 		if MatchConfig.isTroopAvailable(troopId) then
 			orderIndex += 1
-			buildCard(container, troopId, orderIndex)
+			buildCard(scroller, troopId, orderIndex)
 		end
 	end
 
-	-- A largura do painel acompanha o numero de cartoes (cabe no telemovel).
-	container.Size = UDim2.new(0, math.max(1, orderIndex) * 112 + 8, 0, 112)
+	-- Em ecras largos o painel encolhe para o tamanho dos cartoes, em vez de
+	-- ficar um retangulo vazio enorme.
+	local constraint = Instance.new("UISizeConstraint")
+	constraint.MaxSize = Vector2.new(math.max(1, orderIndex) * 112 + 8, math.huge)
+	constraint.Parent = container
 end
 
 function ShopController.start()
