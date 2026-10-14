@@ -290,7 +290,8 @@ local function updateGhost(screenPosition: Vector3)
 
 	-- Pintar: so nos arrastos feitos no campo, com a tropa ja escolhida. Do
 	-- cartao nao se pinta, para atravessar o campo nao comprar sem querer.
-	if dragFromCard or movingUnitId or not valid then
+	-- E nunca sem um gesto em curso: nada se compra sem o botao em baixo.
+	if activeInput == nil or dragFromCard or movingUnitId or not valid then
 		return
 	end
 
@@ -408,21 +409,26 @@ local function onInputBegan(input: InputObject, processed: boolean)
 end
 
 local function onInputChanged(input: InputObject, _processed: boolean)
-	-- Se o gesto e o nosso, seguimo-lo ate ao fim: um arrasto que comeca num
-	-- cartao vem marcado como "processado" pela interface, e e suposto.
-	if input == activeInput then
-		if sellTargetId ~= nil or UIController.isSellMode() then
-			local point = screenToArena(input.Position)
-			if point then
-				updateSellCursor(point)
-			end
-		else
-			updateGhost(input.Position)
-		end
+	-- So se segue o gesto com o botao (ou o dedo) em baixo. Sem isto, passear
+	-- o rato pelo campo com uma tropa escolhida parecia um arrasto — e chegava
+	-- a comprar unidades sem um unico clique.
+	if activeInput == nil then
 		return
 	end
-	if input.UserInputType == Enum.UserInputType.MouseMovement then
-		-- O rato mostra sempre onde vai cair.
+
+	-- O gesto e o nosso. Com rato, o movimento chega num InputObject proprio,
+	-- diferente do do botao; com dedo, e o mesmo do inicio ao fim.
+	local isOurs = input == activeInput or input.UserInputType == Enum.UserInputType.MouseMovement
+	if not isOurs then
+		return
+	end
+
+	if sellTargetId ~= nil or UIController.isSellMode() then
+		local point = screenToArena(input.Position)
+		if point then
+			updateSellCursor(point)
+		end
+	else
 		updateGhost(input.Position)
 	end
 end
