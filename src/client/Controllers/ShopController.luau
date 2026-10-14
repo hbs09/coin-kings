@@ -14,7 +14,6 @@ local Shared = ReplicatedStorage.Shared
 local Types = require(Shared.Types)
 local Locale = require(Shared.Locale)
 local Troops = require(Shared.Config.Troops)
-local RankConfig = require(Shared.Config.Rank)
 
 local State = require(script.Parent.Parent.State)
 local UIUtil = require(script.Parent.Parent.UIUtil)
@@ -31,11 +30,11 @@ type Card = {
 	button: TextButton,
 	nameLabel: TextLabel,
 	costLabel: TextLabel,
-	swatch: Frame,
 }
 
 local cards: { Card } = {}
 local selected: Types.TroopId? = nil
+local sizeConstraint: UISizeConstraint? = nil
 
 -- O PlacementController regista-se aqui para poder arrastar direto do cartao
 -- para o campo, num gesto so. E o ShopController a avisar, e nao o contrario,
@@ -92,35 +91,28 @@ local function select(troopId: Types.TroopId)
 end
 
 function ShopController.refresh()
-	-- No tutorial so se ve o que ja e do jogador: quem esta a aprender nao
-	-- precisa de oito cartoes, precisa de tres.
-	local showLocked = State.mode ~= "tutorial"
+	-- O carrossel e so o que se pode usar agora. O que ainda nao e nosso vive
+	-- no catalogo, nao no meio das tropas que estamos a tentar comprar.
+	local visibleCount = 0
 
 	for _, card in cards do
-		-- Fora do tutorial as bloqueadas ficam a vista, apagadas e com a arena
-		-- que as da: e o que faz a arena seguinte apetecer.
 		local available = isAvailable(card.troopId)
-		card.button.Visible = available or showLocked
-		local affordable = available and State.gold >= card.def.cost
-		local isSelected = selected == card.troopId
-
-		if available then
-			card.costLabel.Text = tostring(card.def.cost)
-		else
-			local arena = RankConfig.arenaOf(card.troopId)
-			card.costLabel.Text = if arena then Locale.get("shop_locked", Locale.get(arena.nameKey)) else "?"
+		card.button.Visible = available
+		if not available then
+			continue
 		end
-		card.swatch.BackgroundTransparency = if available then 0 else 0.7
+		visibleCount += 1
+
+		local affordable = State.gold >= card.def.cost
+		local isSelected = selected == card.troopId
+		card.costLabel.Text = tostring(card.def.cost)
 
 		card.button.BackgroundColor3 = if isSelected
 			then colors.accent
 			elseif affordable then colors.panelLight
 			else Color3.fromRGB(30, 32, 38)
 		card.button.TextColor3 = if isSelected then Color3.fromRGB(28, 24, 12) else colors.text
-		card.nameLabel.TextColor3 = if isSelected
-			then Color3.fromRGB(28, 24, 12)
-			elseif available then colors.text
-			else colors.textDim
+		card.nameLabel.TextColor3 = if isSelected then Color3.fromRGB(28, 24, 12) else colors.text
 		card.costLabel.TextColor3 = if isSelected
 			then Color3.fromRGB(28, 24, 12)
 			elseif affordable then colors.accent
@@ -131,6 +123,13 @@ function ShopController.refresh()
 	local current = selected
 	if current and not isAvailable(current) then
 		selected = nil
+	end
+
+	-- O painel acompanha o numero de cartoes a vista: com tres tropas nao fica
+	-- um retangulo vazio com espaco para oito.
+	local constraint = sizeConstraint
+	if constraint then
+		constraint.MaxSize = Vector2.new(math.max(1, visibleCount) * 112 + 8, math.huge)
 	end
 end
 
@@ -220,7 +219,6 @@ local function buildCard(parent: Instance, troopId: Types.TroopId, orderIndex: n
 		button = button,
 		nameLabel = nameLabel,
 		costLabel = costLabel,
-		swatch = swatch,
 	})
 end
 
@@ -254,11 +252,11 @@ function ShopController.init()
 		buildCard(scroller, troopId, orderIndex)
 	end
 
-	-- Em ecras largos o painel encolhe para o tamanho dos cartoes. Conta com
-	-- todos, porque as tropas bloqueadas tambem ficam a vista.
+	-- O tamanho real e acertado no refresh, conforme as tropas a vista.
 	local constraint = Instance.new("UISizeConstraint")
 	constraint.MaxSize = Vector2.new(math.max(1, orderIndex) * 112 + 8, math.huge)
 	constraint.Parent = container
+	sizeConstraint = constraint
 end
 
 function ShopController.start()

@@ -71,7 +71,6 @@ local pt: { [string]: string } = {
 	trophy_gain = "+{1} troféus",
 	trophy_loss = "{1} troféus",
 	unlocked_troop = "Nova tropa: {1}",
-	shop_locked = "Arena {1}",
 
 	arena_training = "Campo de Treino",
 	arena_swamp = "Pântano",
@@ -149,7 +148,6 @@ local en: { [string]: string } = {
 	trophy_gain = "+{1} trophies",
 	trophy_loss = "{1} trophies",
 	unlocked_troop = "New troop: {1}",
-	shop_locked = "Arena {1}",
 
 	arena_training = "Training Grounds",
 	arena_swamp = "Swamp",
