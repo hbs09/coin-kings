@@ -3,12 +3,13 @@
 	PlacementController — comprar e posicionar, com rato ou com o dedo.
 
 	Como funciona:
-	- Arrastar um cartao da loja direto para a propria metade coloca a tropa,
-	  num gesto so. Um toque no cartao escolhe-a, e depois toca-se no campo.
-	- **Sem largar, o arrasto continua a comprar e a colocar pelo caminho**:
-	  passar o dedo pela metade enche-a de unidades, enquanto houver ouro e
-	  espaco. Montar um exercito de 30 soldados a um toque de cada vez era
-	  trabalho a mais para o jogador.
+	- Arrastar um cartao da loja direto para a propria metade coloca **uma**
+	  tropa, onde se largar. Atravessar o campo com o dedo nao compra nada pelo
+	  caminho: quem arrasta do cartao ainda esta a escolher onde por a primeira.
+	- **Comprada a primeira, o arrasto no campo enche**: com a tropa ja
+	  escolhida, passar o dedo pela propria metade vai colocando enquanto
+	  houver ouro e espaco. Montar 30 soldados a um toque de cada vez era
+	  trabalho a mais, mas comprar sem querer e pior.
 	- Arrastar uma unidade ja colocada move-a, de graca, durante a preparacao.
 	- No modo "Vender" (ou com o botao direito), carregar numa unidade marca-a
 	  e e ao largar que ela e vendida: da tempo de ver o que vai embora.
@@ -287,8 +288,9 @@ local function updateGhost(screenPosition: Vector3)
 		if valid then Color3.fromRGB(120, 220, 140) else Color3.fromRGB(226, 94, 86)
 	)
 
-	-- Pintar: a arrastar do cartao, vai colocando pelo caminho.
-	if not dragFromCard or movingUnitId or not valid then
+	-- Pintar: so nos arrastos feitos no campo, com a tropa ja escolhida. Do
+	-- cartao nao se pinta, para atravessar o campo nao comprar sem querer.
+	if dragFromCard or movingUnitId or not valid then
 		return
 	end
 
