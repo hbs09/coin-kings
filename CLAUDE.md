@@ -73,7 +73,7 @@ O que já existe está no [README.md](README.md); o resto desta lista é o desti
 Cada tropa define: `hp, damage, range, attackSpeed, moveSpeed, aoeRadius?, bonusVs: {[id]: multiplier}`.
 IA: procura o inimigo válido mais próximo, aproxima-se até ao alcance e ataca. O curandeiro (tropas com `healAmount`) não ataca: trata o aliado ferido mais próximo e, sem feridos, acompanha o aliado de combate mais próximo por trás, a meio alcance.
 
-**A vigiar no balanceamento:** o curandeiro cura ~19,6 hp/s por 100 de ouro, de forma sustentada. Se em playtest os muros de escudeiro com 2 curandeiros ficarem imbatíveis, baixar `healAmount` em `Config/Troops` — é uma linha.
+**A vigiar no balanceamento:** o curandeiro cura 14 hp/s por 100 de ouro, de forma sustentada (`healAmount` 20 a 0,7/s). Depois do primeiro playtest o alcance desceu de 18 para 12 e a cura de 28 para 20: curava de longe demais, o que o tornava seguro de mais. Com alcance 12 tem de ficar logo atrás da linha da frente e fica ao alcance de um cavaleiro pelo flanco. Se continuar forte de mais, mexer outra vez em `Config/Troops`.
 
 ## Feitiços (Config/Spells) — máx. 2 por ronda
 meteor 150 (dano em área pequena) · divine_shield 120 (5 s de invulnerabilidade em área) · freeze 100 (3 s de paragem em área) · fury 130 (+40% de velocidade e dano durante 6 s). Lançados durante a batalha; o servidor valida o cooldown e a área.
