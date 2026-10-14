@@ -10,7 +10,10 @@
 	  espaco. Montar um exercito de 30 soldados a um toque de cada vez era
 	  trabalho a mais para o jogador.
 	- Arrastar uma unidade ja colocada move-a, de graca, durante a preparacao.
-	- No modo "Vender" (ou com o botao direito), tocar numa unidade devolve o ouro.
+	- No modo "Vender" (ou com o botao direito), carregar numa unidade marca-a
+	  e e ao largar que ela e vendida: da tempo de ver o que vai embora.
+	- Um circulo no chao segue o dedo durante qualquer arrasto: verde onde se
+	  pode colocar, vermelho onde nao, e a volta da unidade que vai ser vendida.
 
 	O cliente nunca muda o exercito por si: desenha o que o servidor confirmou
 	em ArmyUpdate e pinta a pre-visualizacao com a regra de Util/Placement.
@@ -41,8 +44,13 @@ local visuals: { [number]: UnitVisual.Visual } = {}
 local ghost: UnitVisual.Visual? = nil
 local ghostTroopId: Types.TroopId? = nil
 
+-- Circulo que segue o dedo, para o jogador ver sempre onde vai cair.
+local cursorPart: BasePart? = nil
+
 -- Arrasto em curso
 local activeInput: InputObject? = nil
+-- Unidade marcada para venda enquanto o dedo esta em baixo.
+local sellTargetId: number? = nil
 local movingUnitId: number? = nil
 local dragStart: Vector2? = nil
 -- Um arrasto que comecou num cartao so coloca se o dedo andou: senao, um
@@ -146,6 +154,63 @@ local function redrawArmy()
 	end
 end
 
+-- Cursor ----------------------------------------------------------------------
+
+local function ensureCursor(): BasePart
+	local existing = cursorPart
+	if existing then
+		return existing
+	end
+
+	local part = Instance.new("Part")
+	part.Name = "Cursor"
+	part.Shape = Enum.PartType.Cylinder
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.CastShadow = false
+	part.Material = Enum.Material.Neon
+	part.Transparency = 1
+	part.Size = Vector3.new(0.2, 6, 6)
+	part.Parent = folder
+
+	cursorPart = part
+	return part
+end
+
+local function showCursor(x: number, z: number, diameter: number, color: Color3)
+	local part = ensureCursor()
+	part.Size = Vector3.new(0.2, diameter, diameter)
+	part.Color = color
+	-- O cilindro tem as faces redondas no eixo X; rodado assim fica deitado.
+	part.CFrame = CFrame.new(x + State.arenaOffsetX, map.floorY + 0.12, z) * CFrame.Angles(0, 0, math.pi / 2)
+	part.Transparency = 0.5
+end
+
+local function hideCursor()
+	local part = cursorPart
+	if part then
+		part.Transparency = 1
+	end
+end
+
+-- Marca para venda a unidade que esta debaixo do dedo e desenha o circulo a
+-- volta dela. Sem unidade por baixo, nao ha nada marcado nem nada a mostrar.
+local function updateSellCursor(point: Vector2)
+	local entry = unitAt(point)
+	sellTargetId = if entry then entry.id else nil
+
+	if not entry then
+		hideCursor()
+		return
+	end
+
+	local def = Troops.get(entry.troopId)
+	local diameter = if def then def.radius * 3 else 4
+	showCursor(entry.x, entry.z, diameter, Color3.fromRGB(226, 94, 86))
+end
+
 -- Pre-visualizacao ------------------------------------------------------------
 
 local function destroyGhost()
@@ -187,18 +252,21 @@ end
 local function updateGhost(screenPosition: Vector3)
 	if not State.canEditArmy() then
 		destroyGhost()
+		hideCursor()
 		return
 	end
 
 	local troopId = draggedTroopId()
 	if not troopId then
 		destroyGhost()
+		hideCursor()
 		return
 	end
 
 	local point = screenToArena(screenPosition)
 	if not point then
 		destroyGhost()
+		hideCursor()
 		return
 	end
 
@@ -212,6 +280,12 @@ local function updateGhost(screenPosition: Vector3)
 	local valid = Placement.isValid(team, State.army, point.X, point.Y, def, movingUnitId)
 	UnitVisual.setPosition(visual, point.X + State.arenaOffsetX, point.Y)
 	UnitVisual.setGhostValid(visual, valid)
+	showCursor(
+		point.X,
+		point.Y,
+		def.radius * 2.6,
+		if valid then Color3.fromRGB(120, 220, 140) else Color3.fromRGB(226, 94, 86)
+	)
 
 	-- Pintar: a arrastar do cartao, vai colocando pelo caminho.
 	if not dragFromCard or movingUnitId or not valid then
@@ -271,7 +345,9 @@ local function endDrag()
 	dragFromCard = false
 	paintedAny = false
 	lastPaint = nil
+	sellTargetId = nil
 	destroyGhost()
+	hideCursor()
 	redrawArmy()
 end
 
@@ -304,12 +380,13 @@ local function onInputBegan(input: InputObject, processed: boolean)
 		return
 	end
 
-	-- Vender: botao direito, ou modo de venda no telemovel.
+	-- Vender: botao direito, ou modo de venda no telemovel. Marca-se agora e
+	-- vende-se ao largar, para dar tempo de ver qual e que vai embora.
 	if isSecondary or UIController.isSellMode() then
-		local entry = unitAt(point)
-		if entry then
-			Net.fireServer("SellUnit", entry.id)
-		end
+		activeInput = input
+		dragStart = Vector2.new(input.Position.X, input.Position.Y)
+		dragFromCard = false
+		updateSellCursor(point)
 		return
 	end
 
@@ -332,7 +409,14 @@ local function onInputChanged(input: InputObject, _processed: boolean)
 	-- Se o gesto e o nosso, seguimo-lo ate ao fim: um arrasto que comeca num
 	-- cartao vem marcado como "processado" pela interface, e e suposto.
 	if input == activeInput then
-		updateGhost(input.Position)
+		if sellTargetId ~= nil or UIController.isSellMode() then
+			local point = screenToArena(input.Position)
+			if point then
+				updateSellCursor(point)
+			end
+		else
+			updateGhost(input.Position)
+		end
 		return
 	end
 	if input.UserInputType == Enum.UserInputType.MouseMovement then
@@ -343,6 +427,20 @@ end
 
 local function onInputEnded(input: InputObject, _processed: boolean)
 	if input ~= activeInput then
+		return
+	end
+
+	-- Venda: o que estiver marcado vai-se embora agora.
+	local selling = sellTargetId
+	if selling then
+		Net.fireServer("SellUnit", selling)
+		endDrag()
+		return
+	end
+
+	-- Em modo de venda nao se coloca nada: largar no vazio nao compra.
+	if UIController.isSellMode() then
+		endDrag()
 		return
 	end
 
