@@ -47,8 +47,4 @@ local troopPool: { Types.TroopId } = {
 }
 Match.troopPool = troopPool
 
-function Match.isTroopAvailable(troopId: Types.TroopId): boolean
-	return table.find(troopPool, troopId) ~= nil
-end
-
 return Match

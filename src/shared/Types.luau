@@ -34,6 +34,8 @@ export type ArmyEntry = {
 	z: number,
 }
 
+export type MatchMode = "pvp" | "campaign"
+
 export type MatchPhase = "Lobby" | "Prep" | "Reveal" | "Battle" | "RoundEnd" | "MatchEnd"
 
 -- Dados persistentes de um jogador (DataService). A forma vem de Config/Data,
@@ -51,6 +53,8 @@ export type Profile = {
 	cosmetics: { [string]: boolean },
 	equipped: { [string]: string },
 	dailyQuests: { [string]: number },
+	-- Capítulos da campanha já concluídos (id -> true).
+	campaign: { [string]: boolean },
 	lastLogin: number,
 }
 
@@ -66,6 +70,12 @@ export type MatchStatePayload = {
 	endsAt: number,
 	duration: number,
 	team: Team?, -- a equipa de quem recebe; nil quando é espectador/lobby
+	mode: MatchMode,
+	-- Capítulo em curso, quando `mode` é "campaign" (chave para o Locale).
+	chapterId: string?,
+	-- Tropas à venda nesta partida: o pool global no PvP, o do capítulo na
+	-- campanha. A loja do cliente desenha a partir daqui.
+	troopPool: { TroopId },
 	-- Deslocamento em X da arena desta partida. As posições das unidades viajam
 	-- em coordenadas locais à arena; o cliente soma isto para desenhar.
 	arenaOffsetX: number,
@@ -118,6 +128,16 @@ export type MatchResultPayload = {
 	winner: Team?,
 	scoreA: number,
 	scoreB: number,
+}
+
+-- O que o cliente precisa de saber do perfil para desenhar o lobby.
+export type ProfilePayload = {
+	level: number,
+	xp: number,
+	coins: number,
+	wins: number,
+	losses: number,
+	campaign: { [string]: boolean },
 }
 
 export type NoticePayload = {

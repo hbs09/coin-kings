@@ -13,7 +13,6 @@ local Shared = ReplicatedStorage.Shared
 local Types = require(Shared.Types)
 local Locale = require(Shared.Locale)
 local Troops = require(Shared.Config.Troops)
-local MatchConfig = require(Shared.Config.Match)
 
 local State = require(script.Parent.Parent.State)
 local UIUtil = require(script.Parent.Parent.UIUtil)
@@ -33,6 +32,11 @@ type Card = {
 
 local cards: { Card } = {}
 local selected: Types.TroopId? = nil
+local sizeConstraint: UISizeConstraint? = nil
+
+local function isAvailable(troopId: Types.TroopId): boolean
+	return table.find(State.troopPool, troopId) ~= nil
+end
 
 function ShopController.getSelected(): Types.TroopId?
 	return selected
@@ -49,7 +53,16 @@ local function select(troopId: Types.TroopId)
 end
 
 function ShopController.refresh()
+	local visibleCount = 0
+
 	for _, card in cards do
+		-- A loja mostra o pool desta partida: na campanha e o do capitulo.
+		local available = isAvailable(card.troopId)
+		card.button.Visible = available
+		if available then
+			visibleCount += 1
+		end
+
 		local affordable = State.gold >= card.def.cost
 		local isSelected = selected == card.troopId
 
@@ -62,6 +75,17 @@ function ShopController.refresh()
 			then Color3.fromRGB(28, 24, 12)
 			elseif affordable then colors.accent
 			else colors.textDim
+	end
+
+	-- Se a tropa escolhida deixou de estar a venda, desmarca-a.
+	local current = selected
+	if current and not isAvailable(current) then
+		selected = nil
+	end
+
+	local constraint = sizeConstraint
+	if constraint then
+		constraint.MaxSize = Vector2.new(math.max(1, visibleCount) * 112 + 8, math.huge)
 	end
 end
 
@@ -155,10 +179,8 @@ function ShopController.init()
 
 	local orderIndex = 0
 	for _, troopId in Troops.order do
-		if MatchConfig.isTroopAvailable(troopId) then
-			orderIndex += 1
-			buildCard(scroller, troopId, orderIndex)
-		end
+		orderIndex += 1
+		buildCard(scroller, troopId, orderIndex)
 	end
 
 	-- Em ecras largos o painel encolhe para o tamanho dos cartoes, em vez de
@@ -166,6 +188,7 @@ function ShopController.init()
 	local constraint = Instance.new("UISizeConstraint")
 	constraint.MaxSize = Vector2.new(math.max(1, orderIndex) * 112 + 8, math.huge)
 	constraint.Parent = container
+	sizeConstraint = constraint
 end
 
 function ShopController.start()

@@ -19,3 +19,13 @@ desktop.ini
 .vscode/*
 !.vscode/settings.json
 .idea/
+
+# Gravacoes e capturas (ficam so no disco)
+*.mp4
+*.mov
+*.avi
+*.webm
+*.gif
+*.png
+*.jpg
+*.jpeg

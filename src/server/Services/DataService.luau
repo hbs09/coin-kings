@@ -46,6 +46,7 @@ local store: DataStore? = nil
 local entries: { [Player]: Entry } = {}
 local loading: { [Player]: boolean } = {}
 local warnedAboutStudio = false
+local loadedListeners: { (player: Player) -> () } = {}
 
 local function profileKey(player: Player): string
 	return DataConfig.keyPrefix .. tostring(player.UserId)
@@ -245,6 +246,12 @@ end
 
 -- API -------------------------------------------------------------------------
 
+-- O perfil carrega de forma assincrona; quem precisa de o mostrar (o lobby)
+-- regista-se aqui em vez de andar a sondar.
+function DataService.onProfileLoaded(listener: (player: Player) -> ())
+	table.insert(loadedListeners, listener)
+end
+
 function DataService.isReady(player: Player): boolean
 	return entries[player] ~= nil
 end
@@ -287,6 +294,10 @@ local function onPlayerAdded(player: Player)
 	end
 
 	entries[player] = entry
+
+	for _, listener in loadedListeners do
+		task.spawn(listener, player)
+	end
 end
 
 local function onPlayerRemoving(player: Player)

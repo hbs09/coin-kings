@@ -22,6 +22,14 @@ local State = {
 	endsAt = 0,
 	duration = 0,
 	team = nil :: Types.Team?,
+	mode = "pvp" :: Types.MatchMode,
+	chapterId = nil :: string?,
+	-- Tropas a venda nesta partida (o capitulo limita a loja).
+	troopPool = {} :: { Types.TroopId },
+	-- Perfil e fila, para o lobby.
+	profile = nil :: Types.ProfilePayload?,
+	queued = false,
+	waiting = 0,
 	-- Deslocamento em X da arena desta partida (as posicoes chegam em
 	-- coordenadas locais; somar isto para desenhar no mundo).
 	arenaOffsetX = 0,
@@ -42,6 +50,8 @@ type RosterFn = (payload: Types.RosterPayload) -> ()
 type SnapshotFn = (payload: Types.SnapshotPayload) -> ()
 type RoundResultFn = (payload: Types.RoundResultPayload) -> ()
 type MatchResultFn = (payload: Types.MatchResultPayload) -> ()
+type ProfileFn = (payload: Types.ProfilePayload) -> ()
+type QueueFn = () -> ()
 type NoticeFn = (payload: Types.NoticePayload) -> ()
 
 local matchStateFns: { MatchStateFn } = {}
@@ -50,6 +60,8 @@ local rosterFns: { RosterFn } = {}
 local snapshotFns: { SnapshotFn } = {}
 local roundResultFns: { RoundResultFn } = {}
 local matchResultFns: { MatchResultFn } = {}
+local profileFns: { ProfileFn } = {}
+local queueFns: { QueueFn } = {}
 local noticeFns: { NoticeFn } = {}
 
 function State.onMatchState(fn: MatchStateFn)
@@ -74,6 +86,14 @@ end
 
 function State.onMatchResult(fn: MatchResultFn)
 	table.insert(matchResultFns, fn)
+end
+
+function State.onProfile(fn: ProfileFn)
+	table.insert(profileFns, fn)
+end
+
+function State.onQueueState(fn: QueueFn)
+	table.insert(queueFns, fn)
 end
 
 function State.onNotice(fn: NoticeFn)
@@ -112,6 +132,9 @@ function State.init()
 		State.duration = payload.duration
 		State.team = payload.team
 		State.arenaOffsetX = payload.arenaOffsetX
+		State.mode = payload.mode
+		State.chapterId = payload.chapterId
+		State.troopPool = payload.troopPool
 		State.selfReady = payload.selfReady
 		State.opponentReady = payload.opponentReady
 		State.opponentName = payload.opponentName
@@ -157,6 +180,22 @@ function State.init()
 		local payload = raw :: Types.MatchResultPayload
 		for _, fn in matchResultFns do
 			fn(payload)
+		end
+	end)
+
+	Net.onClientEvent("Profile", function(raw: any)
+		local payload = raw :: Types.ProfilePayload
+		State.profile = payload
+		for _, fn in profileFns do
+			fn(payload)
+		end
+	end)
+
+	Net.onClientEvent("QueueState", function(raw: any)
+		State.queued = raw.queued == true
+		State.waiting = tonumber(raw.waiting) or 0
+		for _, fn in queueFns do
+			fn()
 		end
 	end)
 

@@ -17,6 +17,7 @@ Players.CharacterAutoLoads = false
 Net.init()
 
 local DataService = require(script.Parent.Services.DataService)
+local BotService = require(script.Parent.Services.BotService)
 local MapService = require(script.Parent.Services.MapService)
 local EconomyService = require(script.Parent.Services.EconomyService)
 local CombatService = require(script.Parent.Services.CombatService)
@@ -24,6 +25,7 @@ local MatchService = require(script.Parent.Services.MatchService)
 local MatchmakingService = require(script.Parent.Services.MatchmakingService)
 
 DataService.init()
+BotService.init()
 MapService.init()
 EconomyService.init()
 CombatService.init()
@@ -31,6 +33,7 @@ MatchService.init()
 MatchmakingService.init()
 
 DataService.start()
+BotService.start()
 MapService.start()
 EconomyService.start()
 CombatService.start()

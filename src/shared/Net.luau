@@ -86,6 +86,30 @@ local SPECS: { [string]: Spec } = {
 			return count == 1 and typeof(args[1]) == "boolean"
 		end,
 	},
+	-- Comecar um capitulo da campanha.
+	StartCampaign = {
+		direction = "ToServer",
+		maxPerSecond = 2,
+		validate = function(args, count)
+			return count == 1 and isShortString(args[1])
+		end,
+	},
+	-- Entrar ou sair da fila do PvP (ninguem e emparelhado sem pedir).
+	SetQueued = {
+		direction = "ToServer",
+		maxPerSecond = 3,
+		validate = function(args, count)
+			return count == 1 and typeof(args[1]) == "boolean"
+		end,
+	},
+	-- Desistir de um capitulo e voltar ao lobby.
+	LeaveMatch = {
+		direction = "ToServer",
+		maxPerSecond = 2,
+		validate = function(_args, count)
+			return count == 0
+		end,
+	},
 	-- Pedido de sincronizacao: quem entra a meio recebe a fase e o seu exercito.
 	RequestState = {
 		direction = "ToServer",
@@ -102,6 +126,8 @@ local SPECS: { [string]: Spec } = {
 	Snapshot = { direction = "ToClient", maxPerSecond = 0 },
 	RoundResult = { direction = "ToClient", maxPerSecond = 0 },
 	MatchResult = { direction = "ToClient", maxPerSecond = 0 },
+	Profile = { direction = "ToClient", maxPerSecond = 0 },
+	QueueState = { direction = "ToClient", maxPerSecond = 0 },
 	Notice = { direction = "ToClient", maxPerSecond = 0 },
 }
 

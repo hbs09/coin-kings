@@ -35,7 +35,6 @@ local pt: { [string]: string } = {
 	hint_place = "Arrasta para a tua metade para colocar",
 	hint_drag = "Arrasta as tuas unidades para as mover",
 	hint_battle = "A batalha começou. Boa sorte!",
-	hint_lobby = "Precisas de 2 jogadores. Abre Test > 2 Players no Studio.",
 
 	-- resultados
 	you_win = "VITÓRIA",
@@ -48,6 +47,31 @@ local pt: { [string]: string } = {
 	reason_timeout = "por valor em campo",
 	reason_aborted = "partida interrompida",
 
+	-- lobby e campanha
+	lobby_title = "Coin Kings",
+	lobby_campaign = "Campanha",
+	lobby_pvp = "Jogar online",
+	lobby_searching = "À procura de adversário...",
+	lobby_cancel = "Cancelar procura",
+	lobby_profile = "Nível {1} · {2} moedas · {3}V/{4}D",
+	chapter_locked_short = "Bloqueado",
+	chapter_done = "Feito",
+	leave_match = "Desistir",
+	reward = "+{1} XP · +{2} moedas",
+
+	chapter_first_steps = "1. Primeiros passos",
+	chapter_first_steps_hint = "Três soldados. Compra mais do que eles e ganhas.",
+	chapter_arrow_line = "2. Linha de arqueiros",
+	chapter_arrow_line_hint = "Arqueiros matam de longe. Alguém tem de lá chegar depressa.",
+	chapter_cavalry = "3. Cavalaria",
+	chapter_cavalry_hint = "Cavaleiros rápidos e fortes. Há uma tropa feita para os parar.",
+	chapter_the_wall = "4. A muralha",
+	chapter_the_wall_hint = "Escudeiros aguentam tudo de frente. Não lutes de frente.",
+	chapter_horde = "5. A horda",
+	chapter_horde_hint = "Treze soldados. Um a um não dá; em grupo, ardem.",
+	chapter_the_giant = "6. O gigante",
+	chapter_the_giant_hint = "Muito perto dos curandeiros. Decide quem morre primeiro.",
+
 	-- avisos do servidor
 	not_enough_gold = "Ouro insuficiente",
 	invalid_placement = "Tens de colocar na tua metade",
@@ -57,6 +81,9 @@ local pt: { [string]: string } = {
 	wrong_phase = "Só podes mexer no exército na preparação",
 	opponent_left = "O adversário saiu",
 	empty_army = "Coloca pelo menos uma unidade!",
+	chapter_locked = "Acaba o capítulo anterior primeiro",
+	chapter_complete = "Capítulo concluído! +{1} moedas",
+	server_full = "Servidor cheio, tenta daqui a pouco",
 }
 
 local en: { [string]: string } = {
@@ -80,7 +107,6 @@ local en: { [string]: string } = {
 	hint_place = "Drag onto your half to place",
 	hint_drag = "Drag your units to move them",
 	hint_battle = "The battle has begun. Good luck!",
-	hint_lobby = "Needs 2 players. Use Test > 2 Players in Studio.",
 
 	you_win = "VICTORY",
 	you_lose = "DEFEAT",
@@ -92,6 +118,30 @@ local en: { [string]: string } = {
 	reason_timeout = "on field value",
 	reason_aborted = "match interrupted",
 
+	lobby_title = "Coin Kings",
+	lobby_campaign = "Campaign",
+	lobby_pvp = "Play online",
+	lobby_searching = "Looking for an opponent...",
+	lobby_cancel = "Cancel search",
+	lobby_profile = "Level {1} · {2} coins · {3}W/{4}L",
+	chapter_locked_short = "Locked",
+	chapter_done = "Done",
+	leave_match = "Give up",
+	reward = "+{1} XP · +{2} coins",
+
+	chapter_first_steps = "1. First steps",
+	chapter_first_steps_hint = "Three soldiers. Buy more than they have and you win.",
+	chapter_arrow_line = "2. Line of archers",
+	chapter_arrow_line_hint = "Archers kill from afar. Someone has to get there fast.",
+	chapter_cavalry = "3. Cavalry",
+	chapter_cavalry_hint = "Fast and strong knights. One troop was made to stop them.",
+	chapter_the_wall = "4. The wall",
+	chapter_the_wall_hint = "Shieldbearers hold anything head-on. Don't fight head-on.",
+	chapter_horde = "5. The horde",
+	chapter_horde_hint = "Thirteen soldiers. One by one won't do; packed together, they burn.",
+	chapter_the_giant = "6. The giant",
+	chapter_the_giant_hint = "Right next to the healers. Decide who dies first.",
+
 	not_enough_gold = "Not enough gold",
 	invalid_placement = "Place it on your own half",
 	unit_limit = "Limit of {1} units",
@@ -100,6 +150,9 @@ local en: { [string]: string } = {
 	wrong_phase = "You can only edit your army during preparation",
 	opponent_left = "The opponent left",
 	empty_army = "Place at least one unit!",
+	chapter_locked = "Finish the previous chapter first",
+	chapter_complete = "Chapter complete! +{1} coins",
+	server_full = "Server is full, try again shortly",
 }
 
 local tables: { [string]: { [string]: string } } = { pt = pt, en = en }

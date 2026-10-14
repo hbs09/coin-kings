@@ -17,6 +17,7 @@ local Types = require(Shared.Types)
 local Net = require(Shared.Net)
 local Locale = require(Shared.Locale)
 local MatchConfig = require(Shared.Config.Match)
+local Campaign = require(Shared.Config.Campaign)
 
 local State = require(script.Parent.Parent.State)
 local UIUtil = require(script.Parent.Parent.UIUtil)
@@ -32,6 +33,10 @@ local sellMode = false
 local toastUntil = 0
 
 -- Referencias criadas no init.
+local root: ScreenGui
+local topBar: Frame
+local resourceBar: Frame
+local leaveButton: TextButton
 local phaseLabel: TextLabel
 local timerLabel: TextLabel
 local roundLabel: TextLabel
@@ -69,6 +74,10 @@ function UIController.getShopContainer(): Frame
 	return shopContainer
 end
 
+function UIController.getRoot(): ScreenGui
+	return root
+end
+
 function UIController.showToast(text: string)
 	toastLabel.Text = text
 	toastLabel.Visible = true
@@ -101,6 +110,7 @@ local function buildTopBar(root: ScreenGui)
 		Parent = root,
 	}) :: Frame
 	UIUtil.corner(bar, 10)
+	topBar = bar
 
 	phaseLabel = make("TextLabel", {
 		Name = "Phase",
@@ -151,6 +161,7 @@ local function buildResourceBar(root: ScreenGui)
 	}) :: Frame
 	UIUtil.corner(bar, 10)
 	UIUtil.padding(bar, 8)
+	resourceBar = bar
 
 	goldLabel = make("TextLabel", {
 		Name = "Gold",
@@ -281,6 +292,24 @@ local function buildOverlays(root: ScreenGui)
 	}) :: TextLabel
 	UIUtil.corner(toastLabel, 8)
 
+	leaveButton = make("TextButton", {
+		Name = "Leave",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -12, 0, 12),
+		Size = UDim2.new(0, 110, 0, 36),
+		BackgroundColor3 = colors.panelLight,
+		BackgroundTransparency = 0.1,
+		BorderSizePixel = 0,
+		AutoButtonColor = true,
+		Font = UIUtil.fontRegular,
+		Text = Locale.get("leave_match"),
+		TextColor3 = colors.textDim,
+		TextSize = 15,
+		Visible = false,
+		Parent = root,
+	}) :: TextButton
+	UIUtil.corner(leaveButton, 8)
+
 	bannerFrame = make("Frame", {
 		Name = "Banner",
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -323,15 +352,26 @@ end
 
 local function refreshHud()
 	local phase = State.phase
+	local chapterId = State.chapterId
+	local chapter = if chapterId then Campaign.get(chapterId) else nil
+	local inLobby = phase == "Lobby"
 	phaseLabel.Text = Locale.get(phaseKey(phase))
 	timerLabel.Text = UIUtil.formatTime(State.timeLeft())
 	timerLabel.TextColor3 = if phase == "Prep" and State.timeLeft() <= 10 then colors.bad else colors.text
 
-	if State.team and phase ~= "Lobby" then
+	if chapter then
+		-- Na campanha o que interessa e o capitulo, nao o placar.
+		roundLabel.Text = Locale.get(chapter.nameKey)
+	elseif State.team and not inLobby then
 		roundLabel.Text = `{Locale.get("round", State.round)}  {State.selfScore} - {State.opponentScore}`
 	else
 		roundLabel.Text = ""
 	end
+
+	-- No lobby o painel de escolha ocupa o ecra: o HUD da partida sai da frente.
+	topBar.Visible = not inLobby
+	resourceBar.Visible = not inLobby
+	leaveButton.Visible = not inLobby and State.mode == "campaign"
 
 	goldLabel.Text = `{Locale.get("gold")}: {State.gold}`
 	unitsLabel.Text = Locale.get("units", State.unitCount(), MatchConfig.maxUnitsPerPlayer)
@@ -347,10 +387,12 @@ local function refreshHud()
 		readyButton.TextColor3 = if State.selfReady then colors.text else Color3.fromRGB(16, 24, 18)
 	end
 
-	if phase == "Lobby" then
-		hintLabel.Text = Locale.get("hint_lobby")
+	if inLobby then
+		hintLabel.Text = ""
 	elseif phase == "Prep" then
-		if State.selfReady then
+		if chapter then
+			hintLabel.Text = Locale.get(chapter.hintKey)
+		elseif State.selfReady then
 			hintLabel.Text = Locale.get("waiting_opponent")
 		elseif State.opponentReady then
 			hintLabel.Text = Locale.get("opponent_ready")
@@ -425,7 +467,7 @@ local function onMatchResult(payload: Types.MatchResultPayload)
 end
 
 function UIController.init()
-	local root = make("ScreenGui", {
+	root = make("ScreenGui", {
 		Name = "CoinKingsHud",
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
@@ -447,6 +489,10 @@ function UIController.start()
 
 	sellButton.MouseButton1Click:Connect(function()
 		setSellMode(not sellMode)
+	end)
+
+	leaveButton.MouseButton1Click:Connect(function()
+		Net.fireServer("LeaveMatch")
 	end)
 
 	State.onMatchState(function(payload: Types.MatchStatePayload)

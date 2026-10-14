@@ -114,11 +114,13 @@ autosave também renova o lock) e em `BindToClose`.
   Services** para gravar. Sem isso o jogo funciona na mesma, sem persistência, e
   o DataService avisa uma vez na Output.
 
-## Campanha PvE (BotService) — o corpo do jogo
-- Capítulos com dificuldade crescente, cada um com um exército inimigo fixo e um orçamento definido em `Config/Campaign`. O jogador resolve o puzzle: que tropas comprar e onde pô-las.
-- É aqui que se desbloqueiam tropas e se aprende o counter de cada uma — o tutorial é o primeiro capítulo.
-- Usa o mesmo `MatchService`/`CombatService` do PvP; muda só quem é o adversário.
-- Objetivo de desenho: dar motivo para voltar amanhã sem vender poder nem grind de coleção.
+## Campanha PvE (BotService) — o corpo do jogo — 6 capítulos feitos
+- Capítulos em `Config/Campaign`: orçamento fixo, **loja limitada** e exército inimigo sempre igual. A dificuldade vem da composição do inimigo, **nunca** de dar mais vida ou dano ao bot.
+- Um capítulo abre com o anterior feito; o primeiro está sempre aberto. Ganhar marca-o como concluído e paga XP e moedas **uma só vez** — repetir não volta a pagar, porque é um puzzle para resolver, não para moer.
+- Ensina um counter de cada vez: 1 comprar e posicionar · 2 arqueiros morrem a cavalaria · 3 cavalaria morre a lanceiros · 4 tanques morrem a área e distância · 5 hordas morrem a área · 6 elites morrem a muitos lanceiros (e trata dos curandeiros primeiro).
+- **Partilha todo o ciclo com o PvP**: um `Side` do `MatchService` pode não ter `player` (é o bot), e os lados passaram a ser indexados pela equipa. É a única diferença entre os dois modos.
+- O `BotService` valida as posições do inimigo com as mesmas regras do jogador e avisa no arranque se um capítulo estiver mal configurado.
+- **Ninguém é emparelhado sem pedir:** quem está a ler a lista de capítulos não é atirado para uma partida. O PvP passou a exigir entrar na fila (`SetQueued`).
 
 ## Progressão e retenção
 - Tutorial de 90 s contra um bot (capítulo 1 da campanha). As 3 primeiras partidas PvP são contra bots fáceis.
@@ -132,7 +134,7 @@ Battle Pass, skins de tropas (a mesma hitbox), efeitos de feitiço, emotes, band
 
 ## Roadmap — trabalhar fase a fase e não avançar sem cumprir o critério
 1. **Protótipo — FEITO (14/10/2026).** Mapa plano com duas metades; soldier, archer e knight; compra validada no servidor; posicionamento por arrastar; batalha até um lado morrer; 1 ronda. *Critério cumprido:* 2 jogadores locais jogaram uma partida completa sem erros na Output.
-2. **MVP:** ~~vários jogos por servidor~~, ~~melhor de 3~~, ~~as 8 tropas~~, ~~DataService~~ (feitos); faltam 2 feitiços, campanha PvE com os primeiros capítulos, Elo e leaderboard, analytics mínimo, UI para telemóvel. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
+2. **MVP:** ~~vários jogos por servidor~~, ~~melhor de 3~~, ~~as 8 tropas~~, ~~DataService~~, ~~campanha PvE~~ (feitos); faltam 2 feitiços, Elo e leaderboard, analytics mínimo, UI para telemóvel. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
 3. **Lançamento:** 4 feitiços, mapa com rio e ponte, modo casual, missões, nível de conta, mais capítulos de campanha, analytics completo (`AnalyticsService`: funil do tutorial, taxa de vitória por tropa, revanche).
 4. **Temporada 1:** Battle Pass, escalões e temporadas, amigos, espectador, replays, eventos.
 
