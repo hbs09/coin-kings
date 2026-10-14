@@ -84,8 +84,12 @@ Pela ordem definida no [CLAUDE.md](CLAUDE.md):
 2. ~~Melhor de 3 e as 8 tropas~~ — **feito**: `roundsToWin = 2`,
    `maxRounds = 3`, as 8 tropas no `troopPool` e a IA de suporte do curandeiro
    no `CombatService`. A loja passou a deslizar na horizontal.
-3. **Campanha PvE** (`BotService` + `Config/Campaign`), `DataService`,
-   `RankService`, 2 feitiços e analytics mínimo.
+3. ~~DataService~~ — **feito**: DataStore com retry, session lock e versão do
+   esquema; grava ao sair, de 60 em 60 s e no `BindToClose`. Para testar a
+   persistência no Studio é preciso ligar **Game Settings → Security → Enable
+   Studio Access to API Services**.
+4. **Campanha PvE** (`BotService` + `Config/Campaign`), `RankService`,
+   2 feitiços e analytics mínimo.
 
 Critério para fechar a fase: alpha com **D1 ≥ 12%** e **≥ 2 partidas por
 sessão**.

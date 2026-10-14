@@ -36,6 +36,24 @@ export type ArmyEntry = {
 
 export type MatchPhase = "Lobby" | "Prep" | "Reveal" | "Battle" | "RoundEnd" | "MatchEnd"
 
+-- Dados persistentes de um jogador (DataService). A forma vem de Config/Data,
+-- que também guarda a versão do esquema.
+export type Profile = {
+	version: number,
+	elo: number,
+	wins: number,
+	losses: number,
+	season: number,
+	level: number,
+	xp: number,
+	coins: number,
+	unlockedTroops: { [string]: boolean },
+	cosmetics: { [string]: boolean },
+	equipped: { [string]: string },
+	dailyQuests: { [string]: number },
+	lastLogin: number,
+}
+
 export type RoundEndReason = "elimination" | "timeout" | "aborted"
 
 -- Servidor -> cliente -------------------------------------------------------

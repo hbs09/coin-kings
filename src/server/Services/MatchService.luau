@@ -32,6 +32,7 @@ local Maps = require(Shared.Config.Maps)
 local Troops = require(Shared.Config.Troops)
 local Placement = require(Shared.Util.Placement)
 
+local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
 local CombatService = require(script.Parent.CombatService)
 
@@ -62,7 +63,6 @@ local MatchService = {}
 local matches: { [number]: Match } = {} -- indexadas pelo slot
 local matchByPlayer: { [Player]: Match } = {}
 local nextUnitId = 0
-local endedListeners: { (players: { Player }) -> () } = {}
 
 local map = Maps.default
 
@@ -365,11 +365,7 @@ local function closeMatch(match: Match)
 	end
 
 	matches[match.slot] = nil
-
-	-- O matchmaking volta a por estes jogadores na fila.
-	for _, listener in endedListeners do
-		listener(released)
-	end
+	-- O matchmaking volta a por estes jogadores na fila no proximo ciclo.
 end
 
 local function startRound(match: Match, roundNumber: number)
@@ -450,6 +446,21 @@ local function runMatch(match: Match)
 		winner = "B"
 	end
 
+	-- Historico do jogador. Uma partida abortada (adversario saiu) nao conta:
+	-- sem Elo ainda nao ha nada a ganhar em premiar ou punir uma desistencia.
+	if not match.abortRequested and winner then
+		for _, side in match.sides do
+			local won = side.team == winner
+			DataService.update(side.player, function(profile: Types.Profile)
+				if won then
+					profile.wins += 1
+				else
+					profile.losses += 1
+				end
+			end)
+		end
+	end
+
 	local payload: Types.MatchResultPayload = { winner = winner, scoreA = match.scoreA, scoreB = match.scoreB }
 	for _, side in match.sides do
 		Net.fireClient("MatchResult", side.player, payload)
@@ -481,11 +492,6 @@ end
 
 function MatchService.isInMatch(player: Player): boolean
 	return matchByPlayer[player] ~= nil
-end
-
--- Avisado quando uma partida acaba (ou e abortada), com os jogadores libertados.
-function MatchService.onMatchEnded(listener: (players: { Player }) -> ())
-	table.insert(endedListeners, listener)
 end
 
 function MatchService.beginMatch(playerA: Player, playerB: Player): boolean

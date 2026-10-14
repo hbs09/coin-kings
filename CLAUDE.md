@@ -91,12 +91,28 @@ meteor 150 (dano em área pequena) · divine_shield 120 (5 s de invulnerabilidad
 - Leaderboard global via OrderedDataStore, atualizado de 5 em 5 minutos. Existe um modo casual separado, sem Elo.
 - Temporadas de 6 a 8 semanas, com reset parcial (−1 escalão).
 
-## Dados do jogador (DataService, DataStore com retry, session lock e versão do esquema)
+## Dados do jogador (DataService) — feito
 ```
 { version, elo, wins, losses, season, level, xp, coins,
   unlockedTroops = {}, cosmetics = {}, equipped = {}, dailyQuests = {}, lastLogin }
 ```
-Guardar ao sair, de 60 em 60 s, e em `BindToClose`.
+A forma e os tempos vivem em `Config/Data`. Grava ao sair, de 60 em 60 s (o
+autosave também renova o lock) e em `BindToClose`.
+
+- **Session lock** com o JobId do servidor, que expira ao fim de 120 s sem
+  renovação: impede duplicação em dois servidores e não deixa o perfil preso se
+  um servidor cair.
+- **Nunca escrever por cima de um perfil que não se conseguiu ler.** Se o
+  DataStore falhar ou a sessão estiver presa noutro servidor, o jogador recebe
+  um perfil em memória com `canSave = false` e **joga na mesma** — perde-se uma
+  sessão, nunca meses de progresso.
+- **Campos novos não precisam de migração:** acrescentar ao `defaultProfile` em
+  `Config/Data` chega, porque o `reconcile` preenche o que falta a perfis
+  antigos. Só se escreve migração quando um campo muda de significado; aí sobe
+  o `schemaVersion`.
+- No Studio é preciso **Game Settings → Security → Enable Studio Access to API
+  Services** para gravar. Sem isso o jogo funciona na mesma, sem persistência, e
+  o DataService avisa uma vez na Output.
 
 ## Campanha PvE (BotService) — o corpo do jogo
 - Capítulos com dificuldade crescente, cada um com um exército inimigo fixo e um orçamento definido em `Config/Campaign`. O jogador resolve o puzzle: que tropas comprar e onde pô-las.
@@ -116,7 +132,7 @@ Battle Pass, skins de tropas (a mesma hitbox), efeitos de feitiço, emotes, band
 
 ## Roadmap — trabalhar fase a fase e não avançar sem cumprir o critério
 1. **Protótipo — FEITO (14/10/2026).** Mapa plano com duas metades; soldier, archer e knight; compra validada no servidor; posicionamento por arrastar; batalha até um lado morrer; 1 ronda. *Critério cumprido:* 2 jogadores locais jogaram uma partida completa sem erros na Output.
-2. **MVP:** ~~vários jogos por servidor~~, ~~melhor de 3~~, ~~as 8 tropas~~ (feitos); faltam 2 feitiços, DataService, campanha PvE com os primeiros capítulos, Elo e leaderboard, UI para telemóvel. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
+2. **MVP:** ~~vários jogos por servidor~~, ~~melhor de 3~~, ~~as 8 tropas~~, ~~DataService~~ (feitos); faltam 2 feitiços, campanha PvE com os primeiros capítulos, Elo e leaderboard, analytics mínimo, UI para telemóvel. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
 3. **Lançamento:** 4 feitiços, mapa com rio e ponte, modo casual, missões, nível de conta, mais capítulos de campanha, analytics completo (`AnalyticsService`: funil do tutorial, taxa de vitória por tropa, revanche).
 4. **Temporada 1:** Battle Pass, escalões e temporadas, amigos, espectador, replays, eventos.
 

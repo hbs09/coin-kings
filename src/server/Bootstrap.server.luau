@@ -16,18 +16,21 @@ Players.CharacterAutoLoads = false
 -- Os remotes tem de existir antes de qualquer servico se ligar a eles.
 Net.init()
 
+local DataService = require(script.Parent.Services.DataService)
 local MapService = require(script.Parent.Services.MapService)
 local EconomyService = require(script.Parent.Services.EconomyService)
 local CombatService = require(script.Parent.Services.CombatService)
 local MatchService = require(script.Parent.Services.MatchService)
 local MatchmakingService = require(script.Parent.Services.MatchmakingService)
 
+DataService.init()
 MapService.init()
 EconomyService.init()
 CombatService.init()
 MatchService.init()
 MatchmakingService.init()
 
+DataService.start()
 MapService.start()
 EconomyService.start()
 CombatService.start()

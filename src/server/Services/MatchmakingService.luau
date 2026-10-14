@@ -2,17 +2,20 @@
 --[[
 	MatchmakingService — a fila do servidor.
 
-	Fase 1/2: emparelha os primeiros dois da fila sempre que houver uma arena
-	livre. Quem acaba uma partida volta ao fim da fila (via MatchService
-	.onMatchEnded), por isso com 2 jogadores joga-se seguido e com mais o par
-	vai rodando.
+	Fase 2: emparelha os primeiros dois da fila sempre que houver uma arena
+	livre. A fila e reconstruida a cada ciclo a partir de quem esta no servidor
+	(nao esta em partida, ja tem o perfil carregado e ainda nao esta na fila),
+	por isso recupera sozinha de qualquer caso estranho: quem acaba uma partida
+	volta a entrar, e quem entrou enquanto o perfil carregava nao fica de fora.
 
-	No MVP entra aqui o Elo (±100, a alargar com a espera) e o recurso ao
-	BotService depois de 20 s de fila.
+	Esperar pelo perfil antes de emparelhar e o que vai permitir, no MVP,
+	emparelhar por Elo (±100, a alargar com a espera) e cair no BotService
+	depois de 20 s de fila.
 ]]
 
 local Players = game:GetService("Players")
 
+local DataService = require(script.Parent.DataService)
 local MatchService = require(script.Parent.MatchService)
 
 local MatchmakingService = {}
@@ -20,59 +23,40 @@ local MatchmakingService = {}
 local queue: { Player } = {}
 local POLL_INTERVAL = 1
 
-local function remove(player: Player)
-	local index = table.find(queue, player)
-	if index then
-		table.remove(queue, index)
-	end
-end
-
-local function enqueue(player: Player)
-	-- Quem esta a jogar nao entra na fila.
-	if MatchService.isInMatch(player) then
-		return
-	end
-	if not table.find(queue, player) then
-		table.insert(queue, player)
-	end
-end
-
--- Tira da fila quem ja saiu do servidor.
-local function pruneQueue()
+-- Tira da fila quem saiu ou ja esta a jogar, e acrescenta quem esta pronto.
+local function refreshQueue()
 	for index = #queue, 1, -1 do
 		local player = queue[index]
 		if not player.Parent or MatchService.isInMatch(player) then
 			table.remove(queue, index)
 		end
 	end
+
+	for _, player in Players:GetPlayers() do
+		local eligible = not MatchService.isInMatch(player)
+			and DataService.isReady(player)
+			and not table.find(queue, player)
+		if eligible then
+			table.insert(queue, player)
+		end
+	end
 end
 
 function MatchmakingService.init()
-	Players.PlayerAdded:Connect(enqueue)
 	Players.PlayerRemoving:Connect(function(player: Player)
-		remove(player)
+		local index = table.find(queue, player)
+		if index then
+			table.remove(queue, index)
+		end
 		MatchService.handlePlayerLeaving(player)
 	end)
-
-	-- Acabada a partida, os dois voltam a ficar disponiveis.
-	MatchService.onMatchEnded(function(players: { Player })
-		for _, player in players do
-			if player.Parent then
-				enqueue(player)
-			end
-		end
-	end)
-
-	for _, player in Players:GetPlayers() do
-		enqueue(player)
-	end
 end
 
 function MatchmakingService.start()
 	task.spawn(function()
 		while true do
 			task.wait(POLL_INTERVAL)
-			pruneQueue()
+			refreshQueue()
 
 			-- Enche todas as arenas livres que a fila conseguir alimentar.
 			while #queue >= 2 and MatchService.freeSlot() ~= nil do
@@ -82,9 +66,7 @@ function MatchmakingService.start()
 					break
 				end
 				if not MatchService.beginMatch(playerA, playerB) then
-					-- Nao arrancou (sem slot ou ja em jogo): nao perder a vez.
-					enqueue(playerA)
-					enqueue(playerB)
+					-- Nao arrancou: o refreshQueue do proximo ciclo repoe-os.
 					break
 				end
 			end
