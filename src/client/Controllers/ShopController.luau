@@ -13,6 +13,7 @@ local Shared = ReplicatedStorage.Shared
 local Types = require(Shared.Types)
 local Locale = require(Shared.Locale)
 local Troops = require(Shared.Config.Troops)
+local RankConfig = require(Shared.Config.Rank)
 
 local State = require(script.Parent.Parent.State)
 local UIUtil = require(script.Parent.Parent.UIUtil)
@@ -27,12 +28,13 @@ type Card = {
 	troopId: Types.TroopId,
 	def: Types.TroopDef,
 	button: TextButton,
+	nameLabel: TextLabel,
 	costLabel: TextLabel,
+	swatch: Frame,
 }
 
 local cards: { Card } = {}
 local selected: Types.TroopId? = nil
-local sizeConstraint: UISizeConstraint? = nil
 
 local function isAvailable(troopId: Types.TroopId): boolean
 	return table.find(State.troopPool, troopId) ~= nil
@@ -48,44 +50,49 @@ function ShopController.clearSelection()
 end
 
 local function select(troopId: Types.TroopId)
+	-- Clicar numa bloqueada nao faz nada: ve-se, nao se usa.
+	if not isAvailable(troopId) then
+		return
+	end
 	selected = if selected == troopId then nil else troopId
 	ShopController.refresh()
 end
 
 function ShopController.refresh()
-	local visibleCount = 0
-
 	for _, card in cards do
-		-- A loja mostra o pool desta partida: na campanha e o do capitulo.
+		-- As bloqueadas ficam a vista, apagadas e com a arena que as da: e o
+		-- que faz a arena seguinte apetecer.
 		local available = isAvailable(card.troopId)
-		card.button.Visible = available
-		if available then
-			visibleCount += 1
-		end
-
-		local affordable = State.gold >= card.def.cost
+		local affordable = available and State.gold >= card.def.cost
 		local isSelected = selected == card.troopId
+
+		if available then
+			card.costLabel.Text = tostring(card.def.cost)
+		else
+			local arena = RankConfig.arenaOf(card.troopId)
+			card.costLabel.Text = if arena then Locale.get("shop_locked", Locale.get(arena.nameKey)) else "?"
+		end
+		card.swatch.BackgroundTransparency = if available then 0 else 0.7
 
 		card.button.BackgroundColor3 = if isSelected
 			then colors.accent
 			elseif affordable then colors.panelLight
 			else Color3.fromRGB(30, 32, 38)
 		card.button.TextColor3 = if isSelected then Color3.fromRGB(28, 24, 12) else colors.text
+		card.nameLabel.TextColor3 = if isSelected
+			then Color3.fromRGB(28, 24, 12)
+			elseif available then colors.text
+			else colors.textDim
 		card.costLabel.TextColor3 = if isSelected
 			then Color3.fromRGB(28, 24, 12)
 			elseif affordable then colors.accent
 			else colors.textDim
 	end
 
-	-- Se a tropa escolhida deixou de estar a venda, desmarca-a.
+	-- Se a tropa escolhida deixou de estar disponivel, desmarca-a.
 	local current = selected
 	if current and not isAvailable(current) then
 		selected = nil
-	end
-
-	local constraint = sizeConstraint
-	if constraint then
-		constraint.MaxSize = Vector2.new(math.max(1, visibleCount) * 112 + 8, math.huge)
 	end
 end
 
@@ -121,7 +128,7 @@ local function buildCard(parent: Instance, troopId: Types.TroopId, orderIndex: n
 	}) :: Frame
 	UIUtil.corner(swatch, 17)
 
-	make("TextLabel", {
+	local nameLabel = make("TextLabel", {
 		Name = "Name",
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 2, 0, 46),
@@ -132,7 +139,7 @@ local function buildCard(parent: Instance, troopId: Types.TroopId, orderIndex: n
 		TextSize = 14,
 		TextScaled = false,
 		Parent = button,
-	})
+	}) :: TextLabel
 
 	local costLabel = make("TextLabel", {
 		Name = "Cost",
@@ -150,7 +157,14 @@ local function buildCard(parent: Instance, troopId: Types.TroopId, orderIndex: n
 		select(troopId)
 	end)
 
-	table.insert(cards, { troopId = troopId, def = def, button = button, costLabel = costLabel })
+	table.insert(cards, {
+		troopId = troopId,
+		def = def,
+		button = button,
+		nameLabel = nameLabel,
+		costLabel = costLabel,
+		swatch = swatch,
+	})
 end
 
 function ShopController.init()
@@ -183,12 +197,11 @@ function ShopController.init()
 		buildCard(scroller, troopId, orderIndex)
 	end
 
-	-- Em ecras largos o painel encolhe para o tamanho dos cartoes, em vez de
-	-- ficar um retangulo vazio enorme.
+	-- Em ecras largos o painel encolhe para o tamanho dos cartoes. Conta com
+	-- todos, porque as tropas bloqueadas tambem ficam a vista.
 	local constraint = Instance.new("UISizeConstraint")
 	constraint.MaxSize = Vector2.new(math.max(1, orderIndex) * 112 + 8, math.huge)
 	constraint.Parent = container
-	sizeConstraint = constraint
 end
 
 function ShopController.start()

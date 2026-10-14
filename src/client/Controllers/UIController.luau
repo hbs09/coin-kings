@@ -17,7 +17,6 @@ local Types = require(Shared.Types)
 local Net = require(Shared.Net)
 local Locale = require(Shared.Locale)
 local MatchConfig = require(Shared.Config.Match)
-local Campaign = require(Shared.Config.Campaign)
 
 local State = require(script.Parent.Parent.State)
 local UIUtil = require(script.Parent.Parent.UIUtil)
@@ -338,8 +337,9 @@ local function buildOverlays(root: ScreenGui)
 	bannerSubtitle = make("TextLabel", {
 		Name = "Subtitle",
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 0, 0, 78),
-		Size = UDim2.new(1, 0, 0, 32),
+		Position = UDim2.new(0, 0, 0, 76),
+		Size = UDim2.new(1, 0, 0, 48),
+		TextWrapped = true,
 		Font = UIUtil.fontRegular,
 		Text = "",
 		TextColor3 = colors.textDim,
@@ -352,16 +352,14 @@ end
 
 local function refreshHud()
 	local phase = State.phase
-	local chapterId = State.chapterId
-	local chapter = if chapterId then Campaign.get(chapterId) else nil
+	local isTutorial = State.mode == "tutorial"
 	local inLobby = phase == "Lobby"
 	phaseLabel.Text = Locale.get(phaseKey(phase))
 	timerLabel.Text = UIUtil.formatTime(State.timeLeft())
 	timerLabel.TextColor3 = if phase == "Prep" and State.timeLeft() <= 10 then colors.bad else colors.text
 
-	if chapter then
-		-- Na campanha o que interessa e o capitulo, nao o placar.
-		roundLabel.Text = Locale.get(chapter.nameKey)
+	if isTutorial then
+		roundLabel.Text = Locale.get("tutorial_name")
 	elseif State.team and not inLobby then
 		roundLabel.Text = `{Locale.get("round", State.round)}  {State.selfScore} - {State.opponentScore}`
 	else
@@ -371,7 +369,7 @@ local function refreshHud()
 	-- No lobby o painel de escolha ocupa o ecra: o HUD da partida sai da frente.
 	topBar.Visible = not inLobby
 	resourceBar.Visible = not inLobby
-	leaveButton.Visible = not inLobby and State.mode == "campaign"
+	leaveButton.Visible = not inLobby and isTutorial
 
 	goldLabel.Text = `{Locale.get("gold")}: {State.gold}`
 	unitsLabel.Text = Locale.get("units", State.unitCount(), MatchConfig.maxUnitsPerPlayer)
@@ -390,8 +388,8 @@ local function refreshHud()
 	if inLobby then
 		hintLabel.Text = ""
 	elseif phase == "Prep" then
-		if chapter then
-			hintLabel.Text = Locale.get(chapter.hintKey)
+		if isTutorial then
+			hintLabel.Text = Locale.get("tutorial_hint")
 		elseif State.selfReady then
 			hintLabel.Text = Locale.get("waiting_opponent")
 		elseif State.opponentReady then
@@ -463,7 +461,23 @@ local function onMatchResult(payload: Types.MatchResultPayload)
 
 	local selfScore = if team == "A" then payload.scoreA else payload.scoreB
 	local otherScore = if team == "A" then payload.scoreB else payload.scoreA
-	UIController.setBanner(title, `{selfScore} - {otherScore}`, true)
+	local subtitle = `{selfScore} - {otherScore}`
+
+	-- No PvP o que interessa no fim sao os trofeus, nao o placar.
+	local delta = payload.trophyDelta
+	if delta then
+		local trophyText = if delta >= 0
+			then Locale.get("trophy_gain", delta)
+			else Locale.get("trophy_loss", delta)
+		subtitle = `{subtitle}  ·  {trophyText}`
+	end
+
+	local unlocked = payload.unlocked
+	if unlocked and #unlocked > 0 then
+		subtitle = subtitle .. "\n" .. Locale.get("unlocked_troop", Locale.troopName(unlocked[1]))
+	end
+
+	UIController.setBanner(title, subtitle, true)
 end
 
 function UIController.init()

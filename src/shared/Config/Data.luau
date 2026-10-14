@@ -44,7 +44,8 @@ local defaultProfile: Types.Profile = {
 	cosmetics = {},
 	equipped = {},
 	dailyQuests = {},
-	campaign = {},
+	trophies = 0,
+	tutorialDone = false,
 	lastLogin = 0,
 }
 

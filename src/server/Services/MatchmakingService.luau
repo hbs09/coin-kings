@@ -2,16 +2,16 @@
 --[[
 	MatchmakingService — a fila do PvP.
 
-	**Ninguem e emparelhado sem pedir.** Quem entra fica no lobby a escolher
-	entre a campanha e o PvP; so entra na fila quem carregar em jogar online
-	(remote SetQueued). Sem isto, um jogador a ler a lista de capitulos era
-	atirado para uma partida a meio da leitura.
+	**Ninguem e emparelhado sem pedir.** Quem esta no lobby a ver os trofeus e a
+	arena so entra na fila se carregar em jogar online (remote SetQueued).
 
 	Quem acaba uma partida continua na fila, de proposito: encadear partidas e
 	a alavanca com mais efeito na retencao. Para parar, carrega em cancelar.
 
-	No MVP entra aqui o Elo (±100, a alargar com a espera) e o recurso ao
-	BotService depois de 20 s de fila.
+	Empareja por trofeus: a fila e ordenada e sai o par mais proximo. Com
+	poucos jogadores isso quer dizer "quem estiver la", que e o melhor possivel
+	e exatamente por isso que o adversario de treino do BotService (fila acima
+	de 20 s) e a proxima peca importante.
 ]]
 
 local Players = game:GetService("Players")
@@ -21,6 +21,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 
 local DataService = require(script.Parent.DataService)
 local MatchService = require(script.Parent.MatchService)
+local RankService = require(script.Parent.RankService)
 
 local MatchmakingService = {}
 
@@ -87,6 +88,12 @@ function MatchmakingService.start()
 		while true do
 			task.wait(POLL_INTERVAL)
 			refreshQueue()
+
+			-- Ordenar por trofeus faz com que pares vizinhos na fila sejam
+			-- tambem os mais parecidos: emparelha-se de cima a baixo.
+			table.sort(queue, function(a: Player, b: Player): boolean
+				return RankService.getTrophies(a) < RankService.getTrophies(b)
+			end)
 
 			-- Enche todas as arenas livres que a fila conseguir alimentar.
 			while #queue >= 2 and MatchService.freeSlot() ~= nil do

@@ -8,10 +8,11 @@ orçamento é igual para os dois lados e ganha quem decide melhor.
 O contexto completo, a estratégia e os critérios de paragem estão em
 [CLAUDE.md](CLAUDE.md).
 
-**Estado: fase 2 (MVP) em curso.** Lobby com **campanha de 6 capítulos** e PvP
-por fila, as 8 tropas, compra e posicionamento validados no servidor, melhor de
-3 com bónus para quem perde a ronda, 6 partidas em paralelo por servidor e
-perfil persistente. Faltam os feitiços, o Elo e o analytics.
+**Estado: fase 2 (MVP) em curso.** Tutorial automático na primeira partida,
+**7 arenas por troféus** (cada uma desbloqueia uma tropa), PvP por fila com
+melhor de 3, as 8 tropas, compra e posicionamento validados no servidor,
+6 partidas em paralelo por servidor e perfil persistente. Faltam os feitiços,
+o bot de fila, o leaderboard e o analytics.
 
 ## Arrancar
 
@@ -88,9 +89,10 @@ Pela ordem definida no [CLAUDE.md](CLAUDE.md):
    esquema; grava ao sair, de 60 em 60 s e no `BindToClose`. Para testar a
    persistência no Studio é preciso ligar **Game Settings → Security → Enable
    Studio Access to API Services**.
-4. ~~Campanha PvE~~ — **feito**: 6 capítulos em `Config/Campaign`, lobby com a
-   lista, progresso guardado no perfil e recompensa paga uma vez.
-5. **`RankService`** (Elo e leaderboard), 2 feitiços e analytics mínimo.
+4. ~~Tutorial e arenas~~ — **feito**: tutorial automático na primeira partida e
+   7 arenas por troféus, cada uma a desbloquear uma tropa.
+5. **Bot de fila** (adversário de treino acima de 20 s de espera), leaderboard,
+   2 feitiços e analytics mínimo.
 
 Critério para fechar a fase: alpha com **D1 ≥ 12%** e **≥ 2 partidas por
 sessão**.

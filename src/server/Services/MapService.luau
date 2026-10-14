@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Maps = require(ReplicatedStorage.Shared.Config.Maps)
 local MatchConfig = require(ReplicatedStorage.Shared.Config.Match)
+local RankConfig = require(ReplicatedStorage.Shared.Config.Rank)
 
 local MapService = {}
 
@@ -127,6 +128,30 @@ function MapService.buildArena(root: Instance, slot: number)
 		wallColor,
 		arena
 	)
+end
+
+-- Veste o campo de um slot com as cores da arena. Como cada partida tem o seu
+-- slot em exclusivo, subir de arena vê-se mesmo no chão.
+function MapService.applyTheme(slot: number, arena: RankConfig.Arena)
+	local root = workspace:FindFirstChild(ARENA_NAME)
+	local arenaFolder = if root then root:FindFirstChild(`Arena_{slot}`) else nil
+	if not arenaFolder then
+		return
+	end
+
+	local floor = arenaFolder:FindFirstChild("Floor")
+	local halfA = arenaFolder:FindFirstChild("HalfA")
+	local halfB = arenaFolder:FindFirstChild("HalfB")
+
+	if floor and floor:IsA("BasePart") then
+		floor.Color = arena.floorColor
+	end
+	if halfA and halfA:IsA("BasePart") then
+		halfA.Color = arena.halfAColor
+	end
+	if halfB and halfB:IsA("BasePart") then
+		halfB.Color = arena.halfBColor
+	end
 end
 
 function MapService.start() end

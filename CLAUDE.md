@@ -12,7 +12,7 @@ Decidido a 14/10/2026, depois de estudar o mercado. **A procura existe; a reten�
 
 Daí as três decisões que mandam neste documento:
 
-1. **A campanha PvE é a espinha do jogo**, não um modo de treino. O `BotService` é peça central, não recurso de fila vazia.
+1. **A progressão são os troféus e as arenas** (decidido a 15/10/2026, a substituir a campanha PvE). O PvE fica reduzido ao tutorial de entrada — o que torna o bot de fila a peça que impede a fila vazia de matar o jogo.
 2. **Diferença face ao Units Battlegrounds:** lá o poder vem da coleção, dos upgrades e do trading; aqui vem só das decisões, com orçamento igual. Isso evita o power creep que mata o PvP — mas **retira o motor de retenção padrão do Roblox** (grind, abrir, trocar). Substituí-lo (ranked com significado, campanha, temporadas, cosméticos) é o problema central do projeto, não um detalhe.
 3. **Nada de Battle Pass, clãs, temporadas ou replays antes de haver prova de retenção.**
 
@@ -85,9 +85,8 @@ meteor 150 (dano em área pequena) · divine_shield 120 (5 s de invulnerabilidad
 - **Vários jogos em paralelo por servidor — feito.** 6 partidas por servidor (`Config/Match.maxMatchesPerServer`), uma arena por slot, afastadas 500 studs em X. Cada partida tem o seu estado e a sua `CombatService.Session`; a replicação é só para os dois jogadores dela. **As coordenadas que viajam na rede são locais à arena**: o `arenaOffsetX` vai no `MatchState` e o cliente soma-o apenas para desenhar, por isso as regras de `Config/Maps` valem para todas as arenas. O lugar no Studio precisa de **Max Players = 12** (Game Settings).
 
 ## Ranking (RankService)
-- Elo escondido (inicial 1000, K = 32, K = 48 nas primeiras 20 partidas).
-- Escalões visíveis: Bronze, Prata, Ouro, Platina, Diamante, Mestre (3 divisões cada) e Lenda (top 100).
-- Matchmaking: Elo ±100, alargando +50 a cada 10 s. Se a espera passar 20 s → partida contra o BotService, marcada como "treino" e sem efeito no Elo. **Esperas longas e recorrentes são o sinal de que o PvP não se sustenta** — medir e registar o tempo de fila desde o primeiro dia.
+- **Troféus visíveis** em vez de Elo escondido (ver Arenas e troféus). Arenas em vez de escalões.
+- Matchmaking por proximidade de troféus. Se a espera passar 20 s → partida contra o BotService, marcada como "treino" e sem efeito no Elo. **Esperas longas e recorrentes são o sinal de que o PvP não se sustenta** — medir e registar o tempo de fila desde o primeiro dia.
 - Leaderboard global via OrderedDataStore, atualizado de 5 em 5 minutos. Existe um modo casual separado, sem Elo.
 - Temporadas de 6 a 8 semanas, com reset parcial (−1 escalão).
 
@@ -114,17 +113,25 @@ autosave também renova o lock) e em `BindToClose`.
   Services** para gravar. Sem isso o jogo funciona na mesma, sem persistência, e
   o DataService avisa uma vez na Output.
 
-## Campanha PvE (BotService) — o corpo do jogo — 6 capítulos feitos
-- Capítulos em `Config/Campaign`: orçamento fixo, **loja limitada** e exército inimigo sempre igual. A dificuldade vem da composição do inimigo, **nunca** de dar mais vida ou dano ao bot.
-- Um capítulo abre com o anterior feito; o primeiro está sempre aberto. Ganhar marca-o como concluído e paga XP e moedas **uma só vez** — repetir não volta a pagar, porque é um puzzle para resolver, não para moer.
-- Ensina um counter de cada vez: 1 comprar e posicionar · 2 arqueiros morrem a cavalaria · 3 cavalaria morre a lanceiros · 4 tanques morrem a área e distância · 5 hordas morrem a área · 6 elites morrem a muitos lanceiros (e trata dos curandeiros primeiro).
-- **Partilha todo o ciclo com o PvP**: um `Side` do `MatchService` pode não ter `player` (é o bot), e os lados passaram a ser indexados pela equipa. É a única diferença entre os dois modos.
-- O `BotService` valida as posições do inimigo com as mesmas regras do jogador e avisa no arranque se um capítulo estiver mal configurado.
-- **Ninguém é emparelhado sem pedir:** quem está a ler a lista de capítulos não é atirado para uma partida. O PvP passou a exigir entrar na fila (`SetQueued`).
+## Arenas e troféus (Config/Rank, RankService) — feito
+**A progressão do jogo são os troféus**, como no Clash Royale: ganha-se no PvP, sobe-se de arena, e **cada arena entrega uma tropa nova**. São 7 arenas, dos 0 aos 3000 troféus, cada uma com o seu aspeto de campo.
+
+Três regras que não se mexem sem pensar duas vezes:
+1. **O desbloqueio é permanente.** Cair de troféus faz descer de arena, mas nunca tira uma tropa já conquistada.
+2. **Não se cai abaixo do piso da arena atual.** Perde-se troféus dentro dela, não se sai dela.
+3. **As tropas novas não são mais fortes, são outras opções.** Não há níveis de tropa: o gigante não bate o soldado "por ser melhor", custa 12 vezes mais do mesmo orçamento. É isto que mantém o duelo justo com desbloqueios, e é a diferença entre isto e um jogo de coleção.
+
+Matemática de Elo com o número à vista (K maior nas 20 primeiras partidas). Matchmaking ordena a fila por troféus e emparelha vizinhos. **Ninguém é emparelhado sem pedir** (`SetQueued`).
+
+## Tutorial (Config/Tutorial, BotService)
+- A **primeira partida de sempre** começa sozinha quando o perfil carrega: contra um bot fraco, com as tropas da Arena 1, e com orçamento a dar para ganhar com folga. A primeira partida de um jogador decide se há segunda.
+- Dá XP e moedas uma vez; perder não marca como feito. No lobby fica um botão para repetir.
+- Tecnicamente é uma partida normal: um `Side` do `MatchService` pode não ter `player` (é o bot) e os lados são indexados pela equipa. É a única diferença entre os modos.
+- **Sem campanha, o adversário de treino do BotService (fila > 20 s) deixa de ser um extra:** é o que segura o jogo quando houver poucos jogadores online.
 
 ## Progressão e retenção
-- Tutorial de 90 s contra um bot (capítulo 1 da campanha). As 3 primeiras partidas PvP são contra bots fáceis.
-- Desbloqueios de tropas por XP (tudo acessível em cerca de 20 h). Nível de conta 1 a 100, com cosméticos.
+- Tutorial automático à entrada, contra um bot fraco, só com as tropas da Arena 1.
+- **Desbloqueios de tropas por arena**, não por XP. Nível de conta 1 a 100, com cosméticos.
 - 3 missões diárias e a primeira vitória do dia vale XP a dobrar.
 - **Encadear partidas é a alavanca com maior impacto no D1** (a retenção acompanha a duração da sessão). A revanche e o voltar à fila sem fricção são funcionalidade de primeira linha, não polimento.
 - Fase 4: desafiar amigos, modo espectador, replays, clãs.
@@ -134,7 +141,7 @@ Battle Pass, skins de tropas (a mesma hitbox), efeitos de feitiço, emotes, band
 
 ## Roadmap — trabalhar fase a fase e não avançar sem cumprir o critério
 1. **Protótipo — FEITO (14/10/2026).** Mapa plano com duas metades; soldier, archer e knight; compra validada no servidor; posicionamento por arrastar; batalha até um lado morrer; 1 ronda. *Critério cumprido:* 2 jogadores locais jogaram uma partida completa sem erros na Output.
-2. **MVP:** ~~vários jogos por servidor~~, ~~melhor de 3~~, ~~as 8 tropas~~, ~~DataService~~, ~~campanha PvE~~ (feitos); faltam 2 feitiços, Elo e leaderboard, analytics mínimo, UI para telemóvel. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
+2. **MVP:** ~~vários jogos por servidor~~, ~~melhor de 3~~, ~~as 8 tropas~~, ~~DataService~~, ~~tutorial~~, ~~arenas e troféus~~ (feitos); faltam 2 feitiços, leaderboard, bot de fila, analytics mínimo, UI para telemóvel. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
 3. **Lançamento:** 4 feitiços, mapa com rio e ponte, modo casual, missões, nível de conta, mais capítulos de campanha, analytics completo (`AnalyticsService`: funil do tutorial, taxa de vitória por tropa, revanche).
 4. **Temporada 1:** Battle Pass, escalões e temporadas, amigos, espectador, replays, eventos.
 

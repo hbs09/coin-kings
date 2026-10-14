@@ -2,23 +2,24 @@
 --[[
 	BotService — o adversário que não é um jogador.
 
-	Hoje faz uma coisa só: transformar o exército fixo de um capítulo
-	(Config/Campaign) num exército válido para o MatchService, com ids próprios.
+	Hoje serve o tutorial: transforma o exército fixo de Config/Tutorial num
+	exército válido para o MatchService, com ids próprios.
 
 	Valida cada unidade com as mesmas regras do jogador — dentro da sua metade,
 	sem sobreposições — e descarta (com aviso) o que não servir. Assim um erro
-	de configuração aparece no arranque, em vez de dar um bot com unidades
-	dentro da parede.
+	de configuração aparece no arranque, e não a meio da primeira partida de
+	alguém que acabou de chegar ao jogo.
 
-	No MVP é também daqui que sai o exército aleatório para um orçamento, quando
-	a fila do PvP passar dos 20 s e for preciso um adversário de treino.
+	É também daqui que vai sair o adversário de treino quando a fila do PvP
+	passar dos 20 s. Sem campanha, esse bot deixa de ser um extra: é o que
+	segura o jogo quando houver poucos jogadores online.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
 local Types = require(Shared.Types)
-local Campaign = require(Shared.Config.Campaign)
+local Tutorial = require(Shared.Config.Tutorial)
 local Maps = require(Shared.Config.Maps)
 local Troops = require(Shared.Config.Troops)
 local Placement = require(Shared.Util.Placement)
@@ -32,35 +33,23 @@ local BOT_TEAM: Types.Team = "B"
 
 -- `nextId` devolve o id seguinte; é o MatchService que gere o contador, para
 -- os ids serem únicos entre as duas equipas.
-function BotService.buildCampaignArmy(chapterId: string, nextId: () -> number): { Types.ArmyEntry }
-	local chapter = Campaign.get(chapterId)
-	if not chapter then
-		warn(`BotService: capitulo desconhecido "{chapterId}"`)
-		return {}
-	end
-
+function BotService.buildTutorialArmy(nextId: () -> number): { Types.ArmyEntry }
 	local army: { Types.ArmyEntry } = {}
 
-	for _, unit in chapter.enemy do
+	for _, unit in Tutorial.enemy do
 		local def = Troops.get(unit.troopId)
 		if not def then
-			warn(`BotService: capitulo "{chapterId}" usa a tropa desconhecida "{unit.troopId}"`)
+			warn(`BotService: o tutorial usa a tropa desconhecida "{unit.troopId}"`)
 			continue
 		end
 
 		if not Maps.canPlace(map, BOT_TEAM, unit.x, unit.z, def.radius) then
-			warn(
-				`BotService: capitulo "{chapterId}": {unit.troopId} em ({unit.x}, {unit.z}) `
-					.. "fica fora da metade do bot; ignorado."
-			)
+			warn(`BotService: tutorial: {unit.troopId} em ({unit.x}, {unit.z}) fica fora da metade do bot; ignorado.`)
 			continue
 		end
 
 		if not Placement.spacingOk(army, unit.x, unit.z, def, nil) then
-			warn(
-				`BotService: capitulo "{chapterId}": {unit.troopId} em ({unit.x}, {unit.z}) `
-					.. "sobrepoe outra unidade; ignorado."
-			)
+			warn(`BotService: tutorial: {unit.troopId} em ({unit.x}, {unit.z}) sobrepoe outra unidade; ignorado.`)
 			continue
 		end
 
@@ -71,19 +60,14 @@ function BotService.buildCampaignArmy(chapterId: string, nextId: () -> number): 
 end
 
 function BotService.init()
-	-- Validação no arranque: um capítulo mal configurado aparece já aqui, e não
-	-- a meio de uma partida de um jogador.
+	-- Validação no arranque: um tutorial mal configurado aparece já aqui.
 	local counter = 0
-	local function nextId(): number
+	local army = BotService.buildTutorialArmy(function(): number
 		counter += 1
 		return counter
-	end
-
-	for _, chapter in Campaign.chapters do
-		local army = BotService.buildCampaignArmy(chapter.id, nextId)
-		if #army ~= #chapter.enemy then
-			warn(`BotService: o capitulo "{chapter.id}" tem unidades invalidas (ver avisos acima).`)
-		end
+	end)
+	if #army ~= #Tutorial.enemy then
+		warn("BotService: o tutorial tem unidades invalidas (ver avisos acima).")
 	end
 end
 

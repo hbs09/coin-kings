@@ -34,7 +34,7 @@ export type ArmyEntry = {
 	z: number,
 }
 
-export type MatchMode = "pvp" | "campaign"
+export type MatchMode = "pvp" | "tutorial"
 
 export type MatchPhase = "Lobby" | "Prep" | "Reveal" | "Battle" | "RoundEnd" | "MatchEnd"
 
@@ -53,8 +53,9 @@ export type Profile = {
 	cosmetics: { [string]: boolean },
 	equipped: { [string]: string },
 	dailyQuests: { [string]: number },
-	-- Capítulos da campanha já concluídos (id -> true).
-	campaign: { [string]: boolean },
+	-- Troféus: a progressão visível. A arena e os desbloqueios saem daqui.
+	trophies: number,
+	tutorialDone: boolean,
 	lastLogin: number,
 }
 
@@ -71,10 +72,7 @@ export type MatchStatePayload = {
 	duration: number,
 	team: Team?, -- a equipa de quem recebe; nil quando é espectador/lobby
 	mode: MatchMode,
-	-- Capítulo em curso, quando `mode` é "campaign" (chave para o Locale).
-	chapterId: string?,
-	-- Tropas à venda nesta partida: o pool global no PvP, o do capítulo na
-	-- campanha. A loja do cliente desenha a partir daqui.
+	-- Tropas à venda nesta partida: as que o jogador já desbloqueou.
 	troopPool: { TroopId },
 	-- Deslocamento em X da arena desta partida. As posições das unidades viajam
 	-- em coordenadas locais à arena; o cliente soma isto para desenhar.
@@ -128,6 +126,11 @@ export type MatchResultPayload = {
 	winner: Team?,
 	scoreA: number,
 	scoreB: number,
+	-- Só no PvP: o que esta partida valeu em troféus.
+	trophyDelta: number?,
+	trophies: number?,
+	-- Tropas que esta partida acabou de desbloquear.
+	unlocked: { TroopId }?,
 }
 
 -- O que o cliente precisa de saber do perfil para desenhar o lobby.
@@ -137,7 +140,11 @@ export type ProfilePayload = {
 	coins: number,
 	wins: number,
 	losses: number,
-	campaign: { [string]: boolean },
+	trophies: number,
+	arenaId: string,
+	tutorialDone: boolean,
+	-- Tropas já desbloqueadas (a loja mostra as outras bloqueadas).
+	unlockedTroops: { [string]: boolean },
 }
 
 export type NoticePayload = {

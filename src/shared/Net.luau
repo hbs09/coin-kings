@@ -86,12 +86,12 @@ local SPECS: { [string]: Spec } = {
 			return count == 1 and typeof(args[1]) == "boolean"
 		end,
 	},
-	-- Comecar um capitulo da campanha.
-	StartCampaign = {
+	-- Repetir o tutorial a partir do lobby (a primeira vez e automatica).
+	StartTutorial = {
 		direction = "ToServer",
 		maxPerSecond = 2,
-		validate = function(args, count)
-			return count == 1 and isShortString(args[1])
+		validate = function(_args, count)
+			return count == 0
 		end,
 	},
 	-- Entrar ou sair da fila do PvP (ninguem e emparelhado sem pedir).
@@ -102,7 +102,7 @@ local SPECS: { [string]: Spec } = {
 			return count == 1 and typeof(args[1]) == "boolean"
 		end,
 	},
-	-- Desistir de um capitulo e voltar ao lobby.
+	-- Desistir do tutorial e voltar ao lobby.
 	LeaveMatch = {
 		direction = "ToServer",
 		maxPerSecond = 2,

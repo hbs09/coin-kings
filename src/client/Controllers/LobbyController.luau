@@ -1,15 +1,13 @@
 --!strict
 --[[
-	LobbyController — o ecrã onde se escolhe o que jogar.
+	LobbyController — o ecrã entre partidas.
 
-	Duas opções: a campanha (lista de capítulos, com o seguinte a abrir quando
-	o anterior estiver feito) e o PvP (entrar na fila).
+	Mostra onde o jogador está (troféus e arena), o que falta para a arena
+	seguinte e a tropa que ela entrega — é esse o objetivo que o faz voltar a
+	carregar em jogar.
 
-	Ninguém é emparelhado sem pedir: quem fica a ler a lista de capítulos não é
-	atirado para uma partida a meio. Entrar na fila é um clique explícito.
-
-	Isto só desenha e manda intenções; quem decide se um capítulo está aberto
-	é o servidor, que valida outra vez em `MatchService.beginCampaign`.
+	Ninguém é emparelhado sem pedir: entrar na fila é um clique explícito.
+	O tutorial corre sozinho na primeira vez; aqui fica só o botão de repetir.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -17,7 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage.Shared
 local Net = require(Shared.Net)
 local Locale = require(Shared.Locale)
-local Campaign = require(Shared.Config.Campaign)
+local RankConfig = require(Shared.Config.Rank)
 
 local State = require(script.Parent.Parent.State)
 local UIUtil = require(script.Parent.Parent.UIUtil)
@@ -28,30 +26,18 @@ local colors = UIUtil.colors
 
 local LobbyController = {}
 
-type ChapterRow = {
-	chapter: Campaign.Chapter,
-	button: TextButton,
-	nameLabel: TextLabel,
-	stateLabel: TextLabel,
-}
-
 local panel: Frame
-local profileLabel: TextLabel
+local arenaLabel: TextLabel
+local trophyLabel: TextLabel
+local progressFill: Frame
+local nextArenaLabel: TextLabel
+local recordLabel: TextLabel
 local pvpButton: TextButton
-local rows: { ChapterRow } = {}
+local tutorialButton: TextButton
 
-local function completedChapters(): { [string]: boolean }
+local function trophies(): number
 	local profile = State.profile
-	return if profile then profile.campaign else {}
-end
-
-local function startChapter(chapterId: string)
-	-- Escolher um capítulo tira-nos da fila do PvP: senão, acabado o capítulo,
-	-- caíamos numa partida online sem a pedir.
-	if State.queued then
-		Net.fireServer("SetQueued", false)
-	end
-	Net.fireServer("StartCampaign", chapterId)
+	return if profile then profile.trophies else 0
 end
 
 function LobbyController.refresh()
@@ -61,37 +47,32 @@ function LobbyController.refresh()
 	end
 
 	local profile = State.profile
-	if profile then
-		profileLabel.Text =
-			Locale.get("lobby_profile", profile.level, profile.coins, profile.wins, profile.losses)
+	local total = trophies()
+	local arena = RankConfig.arenaFor(total)
+	local following = RankConfig.nextArena(total)
+
+	arenaLabel.Text = Locale.get("lobby_arena", Locale.get(arena.nameKey))
+	trophyLabel.Text = Locale.get("lobby_trophies", total)
+
+	if following then
+		-- A barra enche entre o piso desta arena e o da seguinte.
+		local span = following.trophies - arena.trophies
+		local done = total - arena.trophies
+		progressFill.Size = UDim2.fromScale(math.clamp(if span > 0 then done / span else 1, 0, 1), 1)
+
+		local unlockName = if #following.unlocks > 0
+			then Locale.troopName(following.unlocks[1])
+			else Locale.get(following.nameKey)
+		nextArenaLabel.Text = Locale.get("lobby_next_arena", following.trophies, unlockName)
 	else
-		profileLabel.Text = ""
+		progressFill.Size = UDim2.fromScale(1, 1)
+		nextArenaLabel.Text = Locale.get("lobby_max_arena")
 	end
 
-	local completed = completedChapters()
-	for _, row in rows do
-		local done = completed[row.chapter.id] == true
-		local unlocked = Campaign.isUnlocked(row.chapter.id, completed)
-
-		row.nameLabel.Text = Locale.get(row.chapter.nameKey)
-		row.button.AutoButtonColor = unlocked
-
-		if done then
-			row.stateLabel.Text = Locale.get("chapter_done")
-			row.stateLabel.TextColor3 = colors.good
-			row.button.BackgroundColor3 = colors.panelLight
-			row.nameLabel.TextColor3 = colors.text
-		elseif unlocked then
-			row.stateLabel.Text = Locale.get("reward", row.chapter.rewardXp, row.chapter.rewardCoins)
-			row.stateLabel.TextColor3 = colors.accent
-			row.button.BackgroundColor3 = colors.panelLight
-			row.nameLabel.TextColor3 = colors.text
-		else
-			row.stateLabel.Text = Locale.get("chapter_locked_short")
-			row.stateLabel.TextColor3 = colors.textDim
-			row.button.BackgroundColor3 = Color3.fromRGB(30, 32, 38)
-			row.nameLabel.TextColor3 = colors.textDim
-		end
+	if profile then
+		recordLabel.Text = Locale.get("lobby_profile", profile.level, profile.coins, profile.wins, profile.losses)
+	else
+		recordLabel.Text = ""
 	end
 
 	if State.queued then
@@ -105,69 +86,6 @@ function LobbyController.refresh()
 	end
 end
 
-local function buildChapterRow(parent: Instance, chapter: Campaign.Chapter, order: number)
-	local button = make("TextButton", {
-		Name = `Chapter_{chapter.id}`,
-		Size = UDim2.new(1, 0, 0, 54),
-		BackgroundColor3 = colors.panelLight,
-		BorderSizePixel = 0,
-		AutoButtonColor = true,
-		Text = "",
-		LayoutOrder = order,
-		Parent = parent,
-	}) :: TextButton
-	UIUtil.corner(button, 10)
-
-	local nameLabel = make("TextLabel", {
-		Name = "ChapterName",
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 14, 0, 6),
-		Size = UDim2.new(1, -28, 0, 22),
-		Font = UIUtil.font,
-		Text = "",
-		TextColor3 = colors.text,
-		TextSize = 17,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		Parent = button,
-	}) :: TextLabel
-
-	make("TextLabel", {
-		Name = "Hint",
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 14, 0, 28),
-		Size = UDim2.new(1, -120, 0, 20),
-		Font = UIUtil.fontRegular,
-		Text = Locale.get(chapter.hintKey),
-		TextColor3 = colors.textDim,
-		TextSize = 13,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextTruncate = Enum.TextTruncate.AtEnd,
-		Parent = button,
-	})
-
-	local stateLabel = make("TextLabel", {
-		Name = "ChapterState",
-		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -14, 0.5, 0),
-		Size = UDim2.new(0, 150, 0, 20),
-		BackgroundTransparency = 1,
-		Font = UIUtil.fontRegular,
-		Text = "",
-		TextColor3 = colors.accent,
-		TextSize = 13,
-		TextXAlignment = Enum.TextXAlignment.Right,
-		Parent = button,
-	}) :: TextLabel
-
-	button.MouseButton1Click:Connect(function()
-		if Campaign.isUnlocked(chapter.id, completedChapters()) then
-			startChapter(chapter.id)
-		end
-	end)
-
-	table.insert(rows, { chapter = chapter, button = button, nameLabel = nameLabel, stateLabel = stateLabel })
-end
-
 function LobbyController.init()
 	local root = UIController.getRoot()
 
@@ -175,7 +93,7 @@ function LobbyController.init()
 		Name = "Lobby",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.new(1, -40, 1, -60),
+		Size = UDim2.new(1, -40, 0, 330),
 		BackgroundColor3 = colors.panel,
 		BackgroundTransparency = 0.05,
 		BorderSizePixel = 0,
@@ -183,28 +101,72 @@ function LobbyController.init()
 		Parent = root,
 	}) :: Frame
 	UIUtil.corner(panel, 14)
-	UIUtil.padding(panel, 16)
+	UIUtil.padding(panel, 18)
 
 	local constraint = Instance.new("UISizeConstraint")
-	constraint.MaxSize = Vector2.new(680, 460)
+	constraint.MaxSize = Vector2.new(520, 330)
 	constraint.Parent = panel
 
 	make("TextLabel", {
 		Name = "Title",
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 30),
+		Size = UDim2.new(1, 0, 0, 28),
 		Font = UIUtil.font,
 		Text = Locale.get("lobby_title"),
 		TextColor3 = colors.accent,
-		TextSize = 26,
+		TextSize = 24,
 		Parent = panel,
 	})
 
-	profileLabel = make("TextLabel", {
-		Name = "Profile",
+	arenaLabel = make("TextLabel", {
+		Name = "Arena",
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 0, 0, 32),
-		Size = UDim2.new(1, 0, 0, 18),
+		Position = UDim2.new(0, 0, 0, 34),
+		Size = UDim2.new(1, 0, 0, 26),
+		Font = UIUtil.font,
+		Text = "",
+		TextColor3 = colors.text,
+		TextSize = 20,
+		Parent = panel,
+	}) :: TextLabel
+
+	trophyLabel = make("TextLabel", {
+		Name = "Trophies",
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 0, 0, 60),
+		Size = UDim2.new(1, 0, 0, 24),
+		Font = UIUtil.font,
+		Text = "",
+		TextColor3 = colors.accent,
+		TextSize = 19,
+		Parent = panel,
+	}) :: TextLabel
+
+	-- Barra de progresso para a arena seguinte.
+	local track = make("Frame", {
+		Name = "ProgressTrack",
+		Position = UDim2.new(0, 0, 0, 92),
+		Size = UDim2.new(1, 0, 0, 10),
+		BackgroundColor3 = Color3.fromRGB(18, 20, 26),
+		BorderSizePixel = 0,
+		Parent = panel,
+	}) :: Frame
+	UIUtil.corner(track, 5)
+
+	progressFill = make("Frame", {
+		Name = "ProgressFill",
+		Size = UDim2.fromScale(0, 1),
+		BackgroundColor3 = colors.accent,
+		BorderSizePixel = 0,
+		Parent = track,
+	}) :: Frame
+	UIUtil.corner(progressFill, 5)
+
+	nextArenaLabel = make("TextLabel", {
+		Name = "NextArena",
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 0, 0, 106),
+		Size = UDim2.new(1, 0, 0, 20),
 		Font = UIUtil.fontRegular,
 		Text = "",
 		TextColor3 = colors.textDim,
@@ -212,64 +174,63 @@ function LobbyController.init()
 		Parent = panel,
 	}) :: TextLabel
 
-	make("TextLabel", {
-		Name = "CampaignTitle",
+	recordLabel = make("TextLabel", {
+		Name = "Record",
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 2, 0, 56),
-		Size = UDim2.new(1, -4, 0, 20),
-		Font = UIUtil.font,
-		Text = Locale.get("lobby_campaign"),
-		TextColor3 = colors.text,
-		TextSize = 16,
-		TextXAlignment = Enum.TextXAlignment.Left,
+		Position = UDim2.new(0, 0, 0, 130),
+		Size = UDim2.new(1, 0, 0, 20),
+		Font = UIUtil.fontRegular,
+		Text = "",
+		TextColor3 = colors.textDim,
+		TextSize = 14,
 		Parent = panel,
-	})
-
-	-- A lista desliza: os capítulos vão crescer e o ecrã do telemóvel não.
-	local list = make("ScrollingFrame", {
-		Name = "Chapters",
-		Position = UDim2.new(0, 0, 0, 80),
-		Size = UDim2.new(1, 0, 1, -142),
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		ScrollingDirection = Enum.ScrollingDirection.Y,
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		CanvasSize = UDim2.new(),
-		ScrollBarThickness = 4,
-		ScrollBarImageTransparency = 0.4,
-		Parent = panel,
-	}) :: ScrollingFrame
-
-	local layout = Instance.new("UIListLayout")
-	layout.FillDirection = Enum.FillDirection.Vertical
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 8)
-	layout.Parent = list
-
-	for index, chapter in Campaign.chapters do
-		buildChapterRow(list, chapter, index)
-	end
+	}) :: TextLabel
 
 	pvpButton = make("TextButton", {
 		Name = "PlayOnline",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, 0),
-		Size = UDim2.new(1, 0, 0, 50),
+		Position = UDim2.new(0.5, 0, 1, -46),
+		Size = UDim2.new(1, 0, 0, 54),
 		BackgroundColor3 = colors.good,
 		BorderSizePixel = 0,
 		AutoButtonColor = true,
 		Font = UIUtil.font,
 		Text = Locale.get("lobby_pvp"),
 		TextColor3 = Color3.fromRGB(16, 24, 18),
-		TextSize = 18,
+		TextSize = 19,
 		Parent = panel,
 	}) :: TextButton
 	UIUtil.corner(pvpButton, 10)
+
+	tutorialButton = make("TextButton", {
+		Name = "ReplayTutorial",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, 0),
+		Size = UDim2.new(1, 0, 0, 36),
+		BackgroundColor3 = colors.panelLight,
+		BorderSizePixel = 0,
+		AutoButtonColor = true,
+		Font = UIUtil.fontRegular,
+		Text = Locale.get("lobby_replay_tutorial"),
+		TextColor3 = colors.textDim,
+		TextSize = 15,
+		Parent = panel,
+	}) :: TextButton
+	UIUtil.corner(tutorialButton, 8)
 end
 
 function LobbyController.start()
 	pvpButton.MouseButton1Click:Connect(function()
 		Net.fireServer("SetQueued", not State.queued)
+	end)
+
+	tutorialButton.MouseButton1Click:Connect(function()
+		-- Repetir o tutorial tira-nos da fila: senão, acabado o tutorial,
+		-- caíamos numa partida online sem a pedir.
+		if State.queued then
+			Net.fireServer("SetQueued", false)
+		end
+		Net.fireServer("StartTutorial")
 	end)
 
 	State.onMatchState(LobbyController.refresh)

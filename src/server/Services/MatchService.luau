@@ -8,9 +8,8 @@
 	Serve os dois modos, porque a unica diferenca entre eles e **quem esta do
 	outro lado**:
 	- "pvp": dois jogadores, melhor de 3, orcamento de Config/Match.
-	- "campaign": um jogador contra um exercito fixo de Config/Campaign, uma
-	  ronda, orcamento e loja do capitulo. Ganhar marca o capitulo como feito e
-	  da XP e moedas.
+	- "tutorial": a primeira partida de quem chega, contra um bot fraco de
+	  Config/Tutorial, uma ronda, so com as tropas da Arena 1.
 
 	Um `Side` pode nao ter `player` (e o bot): e isso que permite partilhar
 	todo o ciclo. Os lados sao indexados pela equipa, nao pelo jogador.
@@ -34,12 +33,15 @@ local Shared = ReplicatedStorage.Shared
 local Types = require(Shared.Types)
 local Net = require(Shared.Net)
 local MatchConfig = require(Shared.Config.Match)
-local Campaign = require(Shared.Config.Campaign)
+local Tutorial = require(Shared.Config.Tutorial)
+local RankConfig = require(Shared.Config.Rank)
 local Maps = require(Shared.Config.Maps)
 local Troops = require(Shared.Config.Troops)
 local Placement = require(Shared.Util.Placement)
 
 local BotService = require(script.Parent.BotService)
+local MapService = require(script.Parent.MapService)
+local RankService = require(script.Parent.RankService)
 local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
 local CombatService = require(script.Parent.CombatService)
@@ -57,7 +59,6 @@ type Match = {
 	slot: number,
 	offsetX: number,
 	mode: Types.MatchMode,
-	chapterId: string?,
 	roundsToWin: number,
 	maxRounds: number,
 	-- Indexados pela equipa ("A" / "B").
@@ -125,16 +126,10 @@ local function sideOf(match: Match, player: Player): Side?
 	return nil
 end
 
--- Tropas a venda nesta partida: as do capitulo na campanha, o pool global no PvP.
-local function troopPoolOf(match: Match): { Types.TroopId }
-	local chapterId = match.chapterId
-	if chapterId then
-		local chapter = Campaign.get(chapterId)
-		if chapter then
-			return chapter.troopPool
-		end
-	end
-	return MatchConfig.troopPool
+-- Tropas a venda para este jogador: as que ja desbloqueou. No tutorial sao
+-- as da Arena 1, que e exatamente o que um jogador novo tem.
+local function troopPoolFor(player: Player): { Types.TroopId }
+	return RankService.unlockedPool(player)
 end
 
 local function sendProfile(player: Player)
@@ -148,7 +143,10 @@ local function sendProfile(player: Player)
 		coins = profile.coins,
 		wins = profile.wins,
 		losses = profile.losses,
-		campaign = profile.campaign,
+		trophies = profile.trophies,
+		arenaId = RankConfig.arenaFor(profile.trophies).id,
+		tutorialDone = profile.tutorialDone,
+		unlockedTroops = profile.unlockedTroops,
 	}
 	Net.fireClient("Profile", player, payload)
 end
@@ -174,8 +172,7 @@ local function sendLobbyState(player: Player)
 		duration = 0,
 		team = nil,
 		mode = "pvp",
-		chapterId = nil,
-		troopPool = MatchConfig.troopPool,
+		troopPool = troopPoolFor(player),
 		arenaOffsetX = 0,
 		selfReady = false,
 		opponentReady = false,
@@ -187,7 +184,6 @@ local function sendLobbyState(player: Player)
 end
 
 local function broadcastState(match: Match)
-	local pool = troopPoolOf(match)
 	for _, side in match.sides do
 		local player = side.player
 		if not player then
@@ -203,8 +199,7 @@ local function broadcastState(match: Match)
 			duration = match.phaseDuration,
 			team = side.team,
 			mode = match.mode,
-			chapterId = match.chapterId,
-			troopPool = pool,
+			troopPool = troopPoolFor(player),
 			arenaOffsetX = match.offsetX,
 			selfReady = side.ready,
 			opponentReady = if opponent then opponent.ready else false,
@@ -284,7 +279,7 @@ local function handlePlace(player: Player, troopId: string, x: number, z: number
 		return
 	end
 
-	if table.find(troopPoolOf(match), troopId) == nil then
+	if table.find(troopPoolFor(player), troopId) == nil then
 		notify(player, "troop_locked")
 		return
 	end
@@ -432,7 +427,7 @@ end
 local function startRound(match: Match, roundNumber: number)
 	match.round = roundNumber
 
-	local chapter = if match.chapterId then Campaign.get(match.chapterId) else nil
+	local isTutorial = match.mode == "tutorial"
 
 	for _, side in match.sides do
 		side.army = {}
@@ -441,11 +436,11 @@ local function startRound(match: Match, roundNumber: number)
 		local player = side.player
 		if player then
 			local bonus = if side.lostLastRound then MatchConfig.loserBonus else 0
-			local gold = if chapter then chapter.gold else MatchConfig.startingGold + bonus
+			local gold = if isTutorial then Tutorial.gold else MatchConfig.startingGold + bonus
 			EconomyService.setGold(player, gold)
-		elseif match.chapterId then
-			-- O bot nao compra: o exercito dele vem do capitulo, ja validado.
-			side.army = BotService.buildCampaignArmy(match.chapterId, allocateUnitId)
+		elseif isTutorial then
+			-- O bot nao compra: o exercito dele vem de Config/Tutorial.
+			side.army = BotService.buildTutorialArmy(allocateUnitId)
 			side.ready = true
 		end
 	end
@@ -457,36 +452,22 @@ local function startRound(match: Match, roundNumber: number)
 	waitPhaseEnd(match)
 end
 
--- Capitulo ganho: marca como feito e paga a recompensa (uma vez so).
-local function awardCampaign(match: Match, winner: Types.Team?)
-	local chapterId = match.chapterId
-	if not chapterId or not winner then
-		return
-	end
-
-	local chapter = Campaign.get(chapterId)
-	if not chapter then
-		return
-	end
-
+-- Tutorial terminado: marca-o como feito e paga, uma vez so.
+local function awardTutorial(match: Match, winner: Types.Team?)
 	for _, side in match.sides do
 		local player = side.player
 		if player and side.team == winner then
 			local firstTime = false
 			DataService.update(player, function(profile: Types.Profile)
-				if not profile.campaign[chapterId] then
-					profile.campaign[chapterId] = true
+				if not profile.tutorialDone then
+					profile.tutorialDone = true
+					profile.xp += Tutorial.rewardXp
+					profile.coins += Tutorial.rewardCoins
 					firstTime = true
-				end
-				-- Repetir um capitulo nao volta a pagar: a campanha e para
-				-- resolver, nao para moer.
-				if firstTime then
-					profile.xp += chapter.rewardXp
-					profile.coins += chapter.rewardCoins
 				end
 			end)
 			if firstTime then
-				notify(player, "chapter_complete", tostring(chapter.rewardCoins))
+				notify(player, "tutorial_complete", tostring(Tutorial.rewardCoins))
 			end
 			sendProfile(player)
 		end
@@ -555,14 +536,29 @@ local function runMatch(match: Match)
 		winner = "B"
 	end
 
+	-- Trofeus do PvP, para irem no MatchResult.
+	local outcomes: { [Player]: RankService.MatchOutcome } = {}
+
 	if not match.abortRequested then
-		if match.mode == "campaign" then
-			awardCampaign(match, winner)
+		if match.mode == "tutorial" then
+			awardTutorial(match, winner)
 		elseif winner then
 			-- Historico do PvP. Uma partida abortada nao conta: sem Elo ainda
 			-- nao ha nada a ganhar em premiar ou punir uma desistencia.
+			-- Os trofeus do adversario sao lidos antes de qualquer alteracao,
+			-- para os dois lados contarem a mesma partida.
+			local trophiesBefore: { [Player]: number } = {}
 			for _, side in match.sides do
 				local player = side.player
+				if player then
+					trophiesBefore[player] = RankService.getTrophies(player)
+				end
+			end
+
+			for _, side in match.sides do
+				local player = side.player
+				local opponent = getOpponent(match, side)
+				local opponentPlayer = if opponent then opponent.player else nil
 				if player then
 					local won = side.team == winner
 					DataService.update(player, function(profile: Types.Profile)
@@ -572,13 +568,28 @@ local function runMatch(match: Match)
 							profile.losses += 1
 						end
 					end)
+
+					local against = if opponentPlayer then trophiesBefore[opponentPlayer] else nil
+					local outcome = RankService.applyMatchResult(player, against or 0, won)
+					if outcome then
+						outcomes[player] = outcome
+					end
+					sendProfile(player)
 				end
 			end
 		end
 	end
 
-	local payload: Types.MatchResultPayload = { winner = winner, scoreA = match.scoreA, scoreB = match.scoreB }
 	for _, player in playersOf(match) do
+		local outcome = outcomes[player]
+		local payload: Types.MatchResultPayload = {
+			winner = winner,
+			scoreA = match.scoreA,
+			scoreB = match.scoreB,
+			trophyDelta = if outcome then outcome.delta else nil,
+			trophies = if outcome then outcome.trophies else nil,
+			unlocked = if outcome then outcome.unlocked else nil,
+		}
 		Net.fireClient("MatchResult", player, payload)
 	end
 
@@ -593,6 +604,17 @@ local function spawnMatch(match: Match)
 		matchByPlayer[player] = match
 	end
 
+	-- O campo veste-se com a arena de quem tem menos troféus: quem está a
+	-- subir vê o cenário mudar, em vez de ser o veterano a ver sempre o seu.
+	local lowest: number? = nil
+	for _, player in playersOf(match) do
+		local trophies = RankService.getTrophies(player)
+		if lowest == nil or trophies < lowest then
+			lowest = trophies
+		end
+	end
+	MapService.applyTheme(match.slot, RankConfig.arenaFor(lowest or 0))
+
 	task.spawn(function()
 		local ok, err = pcall(runMatch, match)
 		if not ok then
@@ -602,14 +624,15 @@ local function spawnMatch(match: Match)
 	end)
 end
 
-local function newMatch(slot: number, mode: Types.MatchMode, chapterId: string?): Match
+local function newMatch(slot: number, mode: Types.MatchMode): Match
+	local solo = mode == "tutorial"
 	return {
 		slot = slot,
 		offsetX = Maps.arenaOffset(map, slot),
 		mode = mode,
-		chapterId = chapterId,
-		roundsToWin = if mode == "campaign" then Campaign.roundsToWin else MatchConfig.roundsToWin,
-		maxRounds = if mode == "campaign" then Campaign.maxRounds else MatchConfig.maxRounds,
+		-- O tutorial e uma ronda so: e uma aula, nao um duelo.
+		roundsToWin = if solo then 1 else MatchConfig.roundsToWin,
+		maxRounds = if solo then 1 else MatchConfig.maxRounds,
 		sides = {},
 		phase = "Lobby",
 		phaseEndsAt = now(),
@@ -651,7 +674,7 @@ function MatchService.beginMatch(playerA: Player, playerB: Player): boolean
 		return false
 	end
 
-	local match = newMatch(slot, "pvp", nil)
+	local match = newMatch(slot, "pvp")
 	match.sides.A = newSide(playerA, "A")
 	match.sides.B = newSide(playerB, "B")
 	CombatService.setRecipients(match.session, { playerA, playerB })
@@ -659,22 +682,8 @@ function MatchService.beginMatch(playerA: Player, playerB: Player): boolean
 	return true
 end
 
-function MatchService.beginCampaign(player: Player, chapterId: string): boolean
+function MatchService.beginTutorial(player: Player): boolean
 	if matchByPlayer[player] then
-		return false
-	end
-
-	local chapter = Campaign.get(chapterId)
-	if not chapter then
-		return false
-	end
-
-	-- Um capitulo so abre com o anterior feito: o cliente ja o esconde, mas e
-	-- o servidor que decide.
-	local profile = DataService.get(player)
-	local completed = if profile then profile.campaign else {}
-	if not Campaign.isUnlocked(chapterId, completed) then
-		notify(player, "chapter_locked")
 		return false
 	end
 
@@ -684,7 +693,7 @@ function MatchService.beginCampaign(player: Player, chapterId: string): boolean
 		return false
 	end
 
-	local match = newMatch(slot, "campaign", chapterId)
+	local match = newMatch(slot, "tutorial")
 	match.sides.A = newSide(player, "A")
 	match.sides.B = newSide(nil, "B")
 	CombatService.setRecipients(match.session, { player })
@@ -732,15 +741,15 @@ function MatchService.init()
 		handleReady(player, ready :: boolean)
 	end)
 
-	Net.onServerEvent("StartCampaign", function(player: Player, chapterId: any)
-		MatchService.beginCampaign(player, chapterId :: string)
+	Net.onServerEvent("StartTutorial", function(player: Player)
+		MatchService.beginTutorial(player)
 	end)
 
-	-- Desistir e so para a campanha: no PvP sair a meio e abandonar, e isso
+	-- Desistir e so para o tutorial: no PvP sair a meio e abandonar, e isso
 	-- passa por sair da partida (handlePlayerLeaving).
 	Net.onServerEvent("LeaveMatch", function(player: Player)
 		local match = matchByPlayer[player]
-		if match and match.mode == "campaign" then
+		if match and match.mode == "tutorial" then
 			match.abortRequested = true
 			CombatService.stop(match.session)
 		end
@@ -767,7 +776,16 @@ function MatchService.start()
 	end
 
 	-- O perfil carrega depois de o jogador entrar; mandamo-lo quando chegar.
-	DataService.onProfileLoaded(sendProfile)
+	-- E e tambem aqui que a primeira partida de sempre comeca sozinha: quem
+	-- chega vai direto ao tutorial, sem passar pelo lobby.
+	DataService.onProfileLoaded(function(player: Player)
+		sendProfile(player)
+
+		local profile = DataService.get(player)
+		if profile and not profile.tutorialDone and not matchByPlayer[player] then
+			MatchService.beginTutorial(player)
+		end
+	end)
 
 	Players.PlayerAdded:Connect(greet)
 	for _, player in Players:GetPlayers() do
