@@ -8,6 +8,7 @@
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage.Shared
 local Types = require(Shared.Types)
@@ -41,6 +42,26 @@ local selected: Types.TroopId? = nil
 -- para nao haver dependencia circular entre os dois.
 type DragListener = (troopId: Types.TroopId, input: InputObject) -> ()
 local dragListeners: { DragListener } = {}
+
+-- O arrasto em curso. No toque, quando o dedo **entra** noutro elemento da
+-- interface, esse elemento recebe um InputBegan novo — ou seja, cada cartao
+-- por onde o dedo passa julga que o toque comecou ali. Sem isto, arrastar o
+-- soldado por cima do arqueiro trocava a tropa a meio do gesto.
+local activeDrag: InputObject? = nil
+
+local function dragInProgress(): boolean
+	local current = activeDrag
+	if not current then
+		return false
+	end
+	-- Rede de seguranca: se o toque ja acabou sem passar pelo InputEnded,
+	-- nao fica um arrasto fantasma a bloquear a loja.
+	if current.UserInputState == Enum.UserInputState.End then
+		activeDrag = nil
+		return false
+	end
+	return true
+end
 
 function ShopController.onCardDragStart(listener: DragListener)
 	table.insert(dragListeners, listener)
@@ -180,7 +201,13 @@ local function buildCard(parent: Instance, troopId: Types.TroopId, orderIndex: n
 		if not isAvailable(troopId) then
 			return
 		end
+		-- Ja vamos a arrastar outra: este cartao esta so a passar por baixo
+		-- do dedo.
+		if dragInProgress() then
+			return
+		end
 
+		activeDrag = input
 		select(troopId)
 		for _, listener in dragListeners do
 			listener(troopId, input)
@@ -235,6 +262,12 @@ function ShopController.init()
 end
 
 function ShopController.start()
+	UserInputService.InputEnded:Connect(function(input: InputObject)
+		if input == activeDrag then
+			activeDrag = nil
+		end
+	end)
+
 	State.onArmy(function()
 		ShopController.refresh()
 	end)
