@@ -1,0 +1,6 @@
+# Normaliza as mudancas de linha (Windows + Studio + Rojo)
+* text=auto eol=lf
+*.rbxl binary
+*.rbxlx binary
+*.rbxm binary
+*.rbxmx binary

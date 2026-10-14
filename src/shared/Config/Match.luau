@@ -1,0 +1,41 @@
+--!strict
+--[[
+	Config/Match — regras e tempos da partida.
+	FASE 1 (protótipo): 1 ronda, 3 tropas, sem feitiços nem Elo.
+	Para o MVP basta mudar os valores aqui (roundsToWin = 2, maxRounds = 3, troopPool completo).
+]]
+
+local Types = require(script.Parent.Parent.Types)
+
+local Match = {}
+
+-- Economia
+Match.startingGold = 1000
+Match.loserBonus = 150 -- ouro extra para quem perdeu a ronda anterior
+
+-- Formato
+Match.roundsToWin = 1 -- MVP: 2 (melhor de 3)
+Match.maxRounds = 1 -- MVP: 3
+
+-- Duração das fases, em segundos
+Match.lobbyCountdown = 3
+Match.prepDuration = 45
+Match.revealDuration = 3
+Match.battleDuration = 90
+Match.roundEndDuration = 5
+Match.matchEndDuration = 8
+
+-- Limites técnicos
+Match.maxUnitsPerPlayer = 40
+Match.tickRate = 10 -- Hz da simulação no servidor
+Match.minUnitSpacing = 0.5 -- folga mínima entre as bordas de duas unidades, em studs
+
+-- Tropas disponíveis nesta fase do roadmap
+local troopPool: { Types.TroopId } = { "soldier", "archer", "knight" }
+Match.troopPool = troopPool
+
+function Match.isTroopAvailable(troopId: Types.TroopId): boolean
+	return table.find(troopPool, troopId) ~= nil
+end
+
+return Match

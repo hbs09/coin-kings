@@ -1,0 +1,109 @@
+--!strict
+--[[
+	MapService — constrói a arena do protótipo a partir de Config/Maps.
+	Tudo é ancorado e sem colisão de personagens: nesta fase os jogadores
+	não têm corpo, vêem o campo por uma câmara fixa.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Maps = require(ReplicatedStorage.Shared.Config.Maps)
+
+local MapService = {}
+
+local ARENA_NAME = "Arena"
+
+local function part(name: string, size: Vector3, position: Vector3, color: Color3, parent: Instance): Part
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanTouch = false
+	p.CanQuery = false
+	p.CastShadow = false
+	p.Material = Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Size = size
+	p.Position = position
+	p.Color = color
+	p.Parent = parent
+	return p
+end
+
+function MapService.init()
+	-- Limpa o que vem do template do Studio.
+	for _, child in workspace:GetChildren() do
+		if child.Name == "Baseplate" or child.Name == ARENA_NAME or child:IsA("SpawnLocation") then
+			child:Destroy()
+		end
+	end
+
+	local map = Maps.default
+	local arena = Instance.new("Folder")
+	arena.Name = ARENA_NAME
+	arena.Parent = workspace
+
+	-- Chão: uma placa por metade, mais a faixa neutra no meio.
+	local halfLength = (map.length / 2) - map.neutralBand
+	local halfCenter = map.neutralBand + halfLength / 2
+
+	part("Floor", Vector3.new(map.width, 1, map.length), Vector3.new(0, map.floorY - 0.5, 0), map.floorColor, arena)
+	part(
+		"HalfA",
+		Vector3.new(map.width - 1, 1.1, halfLength),
+		Vector3.new(0, map.floorY - 0.45, -halfCenter),
+		map.halfAColor,
+		arena
+	)
+	part(
+		"HalfB",
+		Vector3.new(map.width - 1, 1.1, halfLength),
+		Vector3.new(0, map.floorY - 0.45, halfCenter),
+		map.halfBColor,
+		arena
+	)
+	part(
+		"Divider",
+		Vector3.new(map.width, 1.2, 0.6),
+		Vector3.new(0, map.floorY - 0.4, 0),
+		Color3.fromRGB(240, 240, 240),
+		arena
+	)
+
+	-- Muretes decorativos, para se perceber o limite do campo.
+	local wallHeight = 2
+	local wallColor = Color3.fromRGB(58, 60, 66)
+	part(
+		"WallWest",
+		Vector3.new(1, wallHeight, map.length),
+		Vector3.new(-map.width / 2, map.floorY + wallHeight / 2, 0),
+		wallColor,
+		arena
+	)
+	part(
+		"WallEast",
+		Vector3.new(1, wallHeight, map.length),
+		Vector3.new(map.width / 2, map.floorY + wallHeight / 2, 0),
+		wallColor,
+		arena
+	)
+	part(
+		"WallSouth",
+		Vector3.new(map.width + 2, wallHeight, 1),
+		Vector3.new(0, map.floorY + wallHeight / 2, -map.length / 2),
+		wallColor,
+		arena
+	)
+	part(
+		"WallNorth",
+		Vector3.new(map.width + 2, wallHeight, 1),
+		Vector3.new(0, map.floorY + wallHeight / 2, map.length / 2),
+		wallColor,
+		arena
+	)
+end
+
+function MapService.start() end
+
+return MapService

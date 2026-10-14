@@ -1,0 +1,21 @@
+# Builds locais do Rojo
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+*.rbxm
+*.rbxmx
+
+# Ferramentas
+/.rokit/
+/sourcemap.json
+
+# Sistema
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Editor
+.vscode/*
+!.vscode/settings.json
+.idea/
