@@ -416,6 +416,8 @@ local function refreshHud()
 
 	if isTutorial then
 		roundLabel.Text = Locale.get("tutorial_name")
+	elseif State.mode == "sandbox" and not inLobby then
+		roundLabel.Text = Locale.get("sandbox_name")
 	elseif State.mode == "training" and not inLobby then
 		-- Quem joga contra o bot tem de saber que esta a jogar contra o bot.
 		roundLabel.Text = `{Locale.get("training_name")}  ·  {Locale.get("round", State.round)}`
@@ -438,7 +440,10 @@ local function refreshHud()
 	end
 	-- "Desistir" nao faz sentido com a partida ja acabada: ai mandam os botoes
 	-- do ecra de fim.
-	leaveButton.Visible = not inLobby and isTutorial and phase ~= "MatchEnd"
+	-- Sair a meio serve ao tutorial e ao sandbox: nos dois nao ha adversario
+	-- nenhum a ficar pendurado.
+	local canLeave = isTutorial or State.mode == "sandbox"
+	leaveButton.Visible = not inLobby and canLeave and phase ~= "MatchEnd"
 
 	goldLabel.Text = `{Locale.get("gold")}: {State.gold}`
 	unitsLabel.Text = Locale.get("units", State.unitCount(), MatchConfig.maxUnitsPerPlayer)

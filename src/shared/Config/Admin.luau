@@ -29,4 +29,8 @@ Admin.speeds = speeds
 Admin.goldGrant = 1000
 Admin.trophyGrant = 150
 
+-- Modo sandbox: partida contra o bot, com todas as tropas e ouro à vontade,
+-- para experimentar o que for novo sem depender de arenas nem de adversários.
+Admin.sandboxGold = 3000
+
 return Admin

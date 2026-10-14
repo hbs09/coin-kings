@@ -12,6 +12,8 @@
 	  Config/Tutorial, uma ronda, so com as tropas da Arena 1.
 	- "training": o mesmo formato do PvP, mas contra o bot, quando a fila
 	  demora demasiado. Nao mexe em trofeus nem no historico.
+	- "sandbox": so para admins. Contra o bot, uma ronda, com todas as tropas
+	  e ouro a vontade, para experimentar o que for novo.
 
 	Um `Side` pode nao ter `player` (e o bot): e isso que permite partilhar
 	todo o ciclo. Os lados sao indexados pela equipa, nao pelo jogador.
@@ -37,6 +39,7 @@ local Net = require(Shared.Net)
 local MatchConfig = require(Shared.Config.Match)
 local Tutorial = require(Shared.Config.Tutorial)
 local RankConfig = require(Shared.Config.Rank)
+local AdminConfig = require(Shared.Config.Admin)
 local Maps = require(Shared.Config.Maps)
 local Troops = require(Shared.Config.Troops)
 local Placement = require(Shared.Util.Placement)
@@ -129,8 +132,12 @@ local function sideOf(match: Match, player: Player): Side?
 end
 
 -- Tropas a venda para este jogador: as que ja desbloqueou. No tutorial sao
--- as da Arena 1, que e exatamente o que um jogador novo tem.
-local function troopPoolFor(player: Player): { Types.TroopId }
+-- as da Arena 1, que e exatamente o que um jogador novo tem; no sandbox sao
+-- todas, que e o ponto de ter um sandbox.
+local function troopPoolFor(player: Player, match: Match?): { Types.TroopId }
+	if match and match.mode == "sandbox" then
+		return MatchConfig.troopPool
+	end
 	return RankService.unlockedPool(player)
 end
 
@@ -201,7 +208,7 @@ local function broadcastState(match: Match)
 			duration = match.phaseDuration,
 			team = side.team,
 			mode = match.mode,
-			troopPool = troopPoolFor(player),
+			troopPool = troopPoolFor(player, match),
 			arenaOffsetX = match.offsetX,
 			selfReady = side.ready,
 			opponentReady = if opponent then opponent.ready else false,
@@ -281,7 +288,7 @@ local function handlePlace(player: Player, troopId: string, x: number, z: number
 		return
 	end
 
-	if table.find(troopPoolFor(player), troopId) == nil then
+	if table.find(troopPoolFor(player, match), troopId) == nil then
 		notify(player, "troop_locked")
 		return
 	end
@@ -437,7 +444,7 @@ local function startRound(match: Match, roundNumber: number)
 	for _, side in match.sides do
 		local player = side.player
 		if player then
-			humanPool = troopPoolFor(player)
+			humanPool = troopPoolFor(player, match)
 		end
 	end
 
@@ -448,7 +455,10 @@ local function startRound(match: Match, roundNumber: number)
 		local player = side.player
 		if player then
 			local bonus = if side.lostLastRound then MatchConfig.loserBonus else 0
-			local gold = if isTutorial then Tutorial.gold else MatchConfig.startingGold + bonus
+			local gold = if isTutorial
+				then Tutorial.gold
+				elseif match.mode == "sandbox" then AdminConfig.sandboxGold
+				else MatchConfig.startingGold + bonus
 			EconomyService.setGold(player, gold)
 		elseif isTutorial then
 			-- O bot nao compra: o exercito dele vem de Config/Tutorial.
@@ -458,7 +468,10 @@ local function startRound(match: Match, roundNumber: number)
 			-- Treino: mesmo orcamento do jogador, composicao sorteada a cada
 			-- ronda. A dificuldade vem da composicao, nunca de dar mais ouro.
 			local bonus = if side.lostLastRound then MatchConfig.loserBonus else 0
-			side.army = BotService.buildArmy(MatchConfig.startingGold + bonus, humanPool, allocateUnitId)
+			local botGold = if match.mode == "sandbox"
+				then AdminConfig.sandboxGold
+				else MatchConfig.startingGold + bonus
+			side.army = BotService.buildArmy(botGold, humanPool, allocateUnitId)
 			side.ready = true
 		end
 	end
@@ -648,7 +661,9 @@ local function spawnMatch(match: Match)
 end
 
 local function newMatch(slot: number, mode: Types.MatchMode): Match
-	local solo = mode == "tutorial"
+	-- O tutorial e o sandbox sao de uma ronda: um e uma aula, o outro e uma
+	-- bancada de testes. Em ambos ninguem quer esperar por tres rondas.
+	local solo = mode == "tutorial" or mode == "sandbox"
 	return {
 		slot = slot,
 		offsetX = Maps.arenaOffset(map, slot),
@@ -717,6 +732,26 @@ function MatchService.beginTutorial(player: Player): boolean
 	end
 
 	local match = newMatch(slot, "tutorial")
+	match.sides.A = newSide(player, "A")
+	match.sides.B = newSide(nil, "B")
+	CombatService.setRecipients(match.session, { player })
+	spawnMatch(match)
+	return true
+end
+
+-- Bancada de testes do admin: contra o bot, tudo desbloqueado, ouro a vontade.
+function MatchService.beginSandbox(player: Player): boolean
+	if matchByPlayer[player] then
+		return false
+	end
+
+	local slot = MatchService.freeSlot()
+	if not slot then
+		notify(player, "server_full")
+		return false
+	end
+
+	local match = newMatch(slot, "sandbox")
 	match.sides.A = newSide(player, "A")
 	match.sides.B = newSide(nil, "B")
 	CombatService.setRecipients(match.session, { player })
@@ -826,7 +861,7 @@ function MatchService.init()
 	-- passa por sair da partida (handlePlayerLeaving).
 	Net.onServerEvent("LeaveMatch", function(player: Player)
 		local match = matchByPlayer[player]
-		if match and match.mode == "tutorial" then
+		if match and (match.mode == "tutorial" or match.mode == "sandbox") then
 			match.abortRequested = true
 			CombatService.stop(match.session)
 		end

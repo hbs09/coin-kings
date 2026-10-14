@@ -5,6 +5,10 @@
 	Como funciona:
 	- Arrastar um cartao da loja direto para a propria metade coloca a tropa,
 	  num gesto so. Um toque no cartao escolhe-a, e depois toca-se no campo.
+	- **Sem largar, o arrasto continua a comprar e a colocar pelo caminho**:
+	  passar o dedo pela metade enche-a de unidades, enquanto houver ouro e
+	  espaco. Montar um exercito de 30 soldados a um toque de cada vez era
+	  trabalho a mais para o jogador.
 	- Arrastar uma unidade ja colocada move-a, de graca, durante a preparacao.
 	- No modo "Vender" (ou com o botao direito), tocar numa unidade devolve o ouro.
 
@@ -45,6 +49,17 @@ local dragStart: Vector2? = nil
 -- simples toque no cartao largava uma unidade atras do painel da loja.
 local dragFromCard = false
 local DRAG_THRESHOLD = 14
+
+-- Pintura: enquanto se arrasta, vai-se colocando pelo caminho.
+local paintedAny = false
+local lastPaint: Vector2? = nil
+local lastPaintClock = 0
+-- O servidor limita os pedidos de colocacao, por isso ha um intervalo minimo
+-- entre duas unidades pintadas.
+local PAINT_INTERVAL = 0.09
+-- Quanto ouro ja foi pedido e ainda nao veio confirmado no ArmyUpdate: sem
+-- isto, um arrasto rapido pedia mais do que da e enchia o ecra de avisos.
+local pendingSpend = 0
 
 -- Ecra -> arena ---------------------------------------------------------------
 
@@ -194,8 +209,39 @@ local function updateGhost(screenPosition: Vector3)
 		return
 	end
 
+	local valid = Placement.isValid(team, State.army, point.X, point.Y, def, movingUnitId)
 	UnitVisual.setPosition(visual, point.X + State.arenaOffsetX, point.Y)
-	UnitVisual.setGhostValid(visual, Placement.isValid(team, State.army, point.X, point.Y, def, movingUnitId))
+	UnitVisual.setGhostValid(visual, valid)
+
+	-- Pintar: a arrastar do cartao, vai colocando pelo caminho.
+	if not dragFromCard or movingUnitId or not valid then
+		return
+	end
+
+	local now = os.clock()
+	if now - lastPaintClock < PAINT_INTERVAL then
+		return
+	end
+
+	-- So vale a pena pedir se ja houver espaco para outra: a regra e a mesma
+	-- que o servidor aplica, por isso nao se pede o que ia ser recusado.
+	local previous = lastPaint
+	if previous then
+		local minimum = def.radius * 2 + 1
+		if (point - previous).Magnitude < minimum then
+			return
+		end
+	end
+
+	if State.gold - pendingSpend < def.cost then
+		return
+	end
+
+	Net.fireServer("PlaceUnit", troopId, point.X, point.Y)
+	pendingSpend += def.cost
+	lastPaint = point
+	lastPaintClock = now
+	paintedAny = true
 end
 
 -- Entrada ---------------------------------------------------------------------
@@ -223,6 +269,8 @@ local function endDrag()
 	movingUnitId = nil
 	dragStart = nil
 	dragFromCard = false
+	paintedAny = false
+	lastPaint = nil
 	destroyGhost()
 	redrawArmy()
 end
@@ -298,12 +346,13 @@ local function onInputEnded(input: InputObject, _processed: boolean)
 		return
 	end
 
-	if State.canEditArmy() then
+	if State.canEditArmy() and not paintedAny then
 		local start = dragStart
 		local travelled = if start
 			then (Vector2.new(input.Position.X, input.Position.Y) - start).Magnitude
 			else 0
 		-- Do cartao, so coloca quem arrastou. Do campo, um toque chega.
+		-- (Se ja se pintou pelo caminho, a ultima ja la ficou.)
 		if not dragFromCard or travelled >= DRAG_THRESHOLD then
 			commit(input.Position)
 		end
@@ -320,6 +369,8 @@ end
 
 function PlacementController.start()
 	State.onArmy(function()
+		-- O servidor confirmou o exercito: o que estava pedido ja la esta.
+		pendingSpend = 0
 		if State.canEditArmy() then
 			redrawArmy()
 		end

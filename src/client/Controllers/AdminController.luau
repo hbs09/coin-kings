@@ -6,6 +6,11 @@
 	(Config/Admin). Mesmo assim, nada aqui decide nada: cada botão manda um
 	pedido e é o servidor que o valida outra vez.
 
+	Os botões mudam com o sítio onde se está: no lobby aparecem os do perfil
+	(entrar no sandbox, troféus, repor), e dentro de uma partida os do combate
+	(velocidade, saltar fase, ouro). Mostrar "saltar fase" no lobby, ou
+	"repor perfil" a meio de uma batalha, era só ruído.
+
 	Começa fechado, num botão pequeno, para não tapar o campo.
 ]]
 
@@ -28,7 +33,14 @@ local AdminController = {}
 local root: Frame
 local toggle: TextButton
 local list: Frame
+local speedRow: Frame
 local speedButtons: { [number]: TextButton } = {}
+local sandboxButton: TextButton
+local skipButton: TextButton
+local goldButton: TextButton
+local trophyButton: TextButton
+local trophyDownButton: TextButton
+local resetButton: TextButton
 
 local enabled = false
 local open = false
@@ -46,6 +58,17 @@ local function refresh()
 	root.Visible = enabled
 	list.Visible = enabled and open
 	toggle.Text = if open then "ADMIN ▾" else "ADMIN ▸"
+
+	-- Controlos de partida so fazem sentido dentro de uma partida.
+	local inMatch = State.phase ~= "Lobby"
+	speedRow.Visible = inMatch
+	skipButton.Visible = inMatch
+	goldButton.Visible = inMatch
+
+	sandboxButton.Visible = not inMatch
+	trophyButton.Visible = not inMatch
+	trophyDownButton.Visible = not inMatch
+	resetButton.Visible = not inMatch
 
 	for speed, button in speedButtons do
 		local active = speed == currentSpeed
@@ -114,7 +137,7 @@ function AdminController.init()
 	layout.Parent = list
 
 	-- Velocidade da simulacao, lado a lado.
-	local speedRow = make("Frame", {
+	speedRow = make("Frame", {
 		Name = "SpeedRow",
 		Size = UDim2.new(1, 0, 0, 28),
 		BackgroundTransparency = 1,
@@ -151,15 +174,19 @@ function AdminController.init()
 		speedButtons[speed] = instance
 	end
 
-	local skipButton = button(list, "Skip", Locale.get("admin_skip"), 2)
-	local goldButton = button(list, "Gold", Locale.get("admin_gold", AdminConfig.goldGrant), 3)
-	local trophyButton = button(list, "Trophies", Locale.get("admin_trophies", AdminConfig.trophyGrant), 4)
-	local trophyDownButton = button(list, "TrophiesDown", Locale.get("admin_trophies", -AdminConfig.trophyGrant), 5)
-	local resetButton = button(list, "Reset", Locale.get("admin_reset"), 6)
+	skipButton = button(list, "Skip", Locale.get("admin_skip"), 2)
+	goldButton = button(list, "Gold", Locale.get("admin_gold", AdminConfig.goldGrant), 3)
+	sandboxButton = button(list, "Sandbox", Locale.get("admin_sandbox"), 4)
+	trophyButton = button(list, "Trophies", Locale.get("admin_trophies", AdminConfig.trophyGrant), 5)
+	trophyDownButton = button(list, "TrophiesDown", Locale.get("admin_trophies", -AdminConfig.trophyGrant), 6)
+	resetButton = button(list, "Reset", Locale.get("admin_reset"), 7)
 
 	toggle.MouseButton1Click:Connect(function()
 		open = not open
 		refresh()
+	end)
+	sandboxButton.MouseButton1Click:Connect(function()
+		send("sandbox")
 	end)
 	skipButton.MouseButton1Click:Connect(function()
 		send("skipPhase")
@@ -183,6 +210,9 @@ function AdminController.start()
 		enabled = isEnabled
 		refresh()
 	end)
+
+	-- Os botoes mudam ao entrar e sair de uma partida.
+	State.onMatchState(refresh)
 
 	refresh()
 end

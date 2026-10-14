@@ -46,7 +46,9 @@ local function handle(player: Player, command: string, value: number?)
 		return
 	end
 
-	if command == "speed" then
+	if command == "sandbox" then
+		MatchService.beginSandbox(player)
+	elseif command == "speed" then
 		CombatService.setSpeed(value or 1)
 	elseif command == "skipPhase" then
 		MatchService.adminSkipPhase(player)

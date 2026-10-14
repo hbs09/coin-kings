@@ -29,3 +29,11 @@ desktop.ini
 *.png
 *.jpg
 *.jpeg
+
+# Binarios e instaladores que calhem na pasta do projeto
+*.exe
+*.msi
+*.zip
+*.7z
+*.rar
+*.dmg
