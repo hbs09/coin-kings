@@ -93,7 +93,8 @@ IA: procura o inimigo válido mais próximo, aproxima-se até ao alcance e ataca
 ## Ranking (RankService)
 - **Troféus visíveis** em vez de Elo escondido (ver Arenas e troféus). Arenas em vez de escalões.
 - Matchmaking por proximidade de troféus. Se a espera passar 20 s → partida contra o BotService, marcada como "treino" e sem efeito no Elo. **Esperas longas e recorrentes são o sinal de que o PvP não se sustenta** — medir e registar o tempo de fila desde o primeiro dia.
-- Leaderboard global via OrderedDataStore, atualizado de 5 em 5 minutos. Existe um modo casual separado, sem Elo.
+- **Leaderboard — feito** (`Config/Leaderboard`, `LeaderboardService`): top 10 por troféus, OrderedDataStore separado do perfil, lido uma vez por servidor de 5 em 5 minutos e servido de memória. O nome do armazém leva a temporada, por isso um reset é mudar um número — a tabela anterior fica inteira. **É um índice, não a verdade:** os troféus vivem no perfil, e perder a classificação não tira nada a ninguém.
+- Falta o modo casual separado, sem troféus.
 - Temporadas de 6 a 8 semanas, com reset parcial (−1 escalão).
 
 ## Dados do jogador (DataService) — feito
@@ -147,7 +148,7 @@ Battle Pass, skins de tropas (a mesma hitbox), efeitos de feitiço, emotes, band
 
 ## Roadmap — trabalhar fase a fase e não avançar sem cumprir o critério
 1. **Protótipo — FEITO (14/10/2026).** Mapa plano com duas metades; soldier, archer e knight; compra validada no servidor; posicionamento por arrastar; batalha até um lado morrer; 1 ronda. *Critério cumprido:* 2 jogadores locais jogaram uma partida completa sem erros na Output.
-2. **MVP:** ~~vários jogos por servidor~~, ~~melhor de 3~~, ~~as 8 tropas~~, ~~DataService~~, ~~tutorial~~, ~~arenas e troféus~~, ~~bot de fila~~, ~~2 feitiços~~, ~~analytics mínimo~~ (feitos); falta o leaderboard e afinar a UI para telemóvel. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
+2. **MVP:** ~~vários jogos por servidor~~, ~~melhor de 3~~, ~~as 8 tropas~~, ~~DataService~~, ~~tutorial~~, ~~arenas e troféus~~, ~~bot de fila~~, ~~2 feitiços~~, ~~analytics mínimo~~, ~~leaderboard~~ (feitos). Falta **afinar a UI para telemóvel** e depois a alpha. *Critério:* D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
 3. **Lançamento:** 4 feitiços, mapa com rio e ponte, modo casual, missões, nível de conta, mais capítulos de campanha, analytics completo (`AnalyticsService`: funil do tutorial, taxa de vitória por tropa, revanche).
 4. **Temporada 1:** Battle Pass, escalões e temporadas, amigos, espectador, replays, eventos.
 

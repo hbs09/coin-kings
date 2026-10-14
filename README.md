@@ -97,7 +97,8 @@ Pela ordem definida no [CLAUDE.md](CLAUDE.md):
    lançados à mão durante a batalha.
 7. ~~Analytics mínimo~~ — **feito**: partidas por sessão, tempo de fila e
    funil do tutorial, no painel do criador.
-8. **Leaderboard** e afinação da UI para telemóvel.
+8. ~~Leaderboard~~ — **feito**: top 10 por troféus, no lobby.
+9. **Afinar a UI para telemóvel** e correr a alpha.
 
 Critério para fechar a fase: alpha com **D1 ≥ 12%** e **≥ 2 partidas por
 sessão**.

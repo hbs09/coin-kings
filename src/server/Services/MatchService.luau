@@ -51,6 +51,7 @@ local MapService = require(script.Parent.MapService)
 local RankService = require(script.Parent.RankService)
 local AnalyticsService = require(script.Parent.AnalyticsService)
 local DataService = require(script.Parent.DataService)
+local LeaderboardService = require(script.Parent.LeaderboardService)
 local EconomyService = require(script.Parent.EconomyService)
 local CombatService = require(script.Parent.CombatService)
 
@@ -717,6 +718,7 @@ local function runMatch(match: Match)
 						outcomes[player] = outcome
 					end
 					sendProfile(player)
+					LeaderboardService.publish(player)
 				end
 			end
 		end

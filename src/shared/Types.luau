@@ -158,6 +158,18 @@ export type ProfilePayload = {
 	unlockedTroops: { [string]: boolean },
 }
 
+export type LeaderboardEntry = {
+	rank: number,
+	userId: number,
+	name: string,
+	trophies: number,
+}
+
+export type LeaderboardPayload = {
+	entries: { LeaderboardEntry },
+	selfTrophies: number,
+}
+
 export type NoticePayload = {
 	key: string,
 	arg: string?,

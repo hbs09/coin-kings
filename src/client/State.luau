@@ -9,6 +9,7 @@
 	Nada aqui decide regras de jogo; sao dados para desenhar.
 ]]
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
@@ -30,6 +31,8 @@ local State = {
 	profile = nil :: Types.ProfilePayload?,
 	queued = false,
 	waiting = 0,
+	-- Guardado aqui para a classificacao poder destacar o proprio jogador.
+	userId = (Players.LocalPlayer :: Player).UserId,
 	-- Deslocamento em X da arena desta partida (as posicoes chegam em
 	-- coordenadas locais; somar isto para desenhar no mundo).
 	arenaOffsetX = 0,
@@ -54,6 +57,7 @@ type RoundResultFn = (payload: Types.RoundResultPayload) -> ()
 type MatchResultFn = (payload: Types.MatchResultPayload) -> ()
 type ProfileFn = (payload: Types.ProfilePayload) -> ()
 type QueueFn = () -> ()
+type LeaderboardFn = (payload: Types.LeaderboardPayload) -> ()
 type SpellCastFn = (payload: Types.SpellCastPayload) -> ()
 type AdminFn = (enabled: boolean) -> ()
 type NoticeFn = (payload: Types.NoticePayload) -> ()
@@ -66,6 +70,7 @@ local roundResultFns: { RoundResultFn } = {}
 local matchResultFns: { MatchResultFn } = {}
 local profileFns: { ProfileFn } = {}
 local queueFns: { QueueFn } = {}
+local leaderboardFns: { LeaderboardFn } = {}
 local spellCastFns: { SpellCastFn } = {}
 local adminFns: { AdminFn } = {}
 local noticeFns: { NoticeFn } = {}
@@ -100,6 +105,10 @@ end
 
 function State.onQueueState(fn: QueueFn)
 	table.insert(queueFns, fn)
+end
+
+function State.onLeaderboard(fn: LeaderboardFn)
+	table.insert(leaderboardFns, fn)
 end
 
 function State.onSpellCast(fn: SpellCastFn)
@@ -211,6 +220,13 @@ function State.init()
 		State.waiting = tonumber(raw.waiting) or 0
 		for _, fn in queueFns do
 			fn()
+		end
+	end)
+
+	Net.onClientEvent("Leaderboard", function(raw: any)
+		local payload = raw :: Types.LeaderboardPayload
+		for _, fn in leaderboardFns do
+			fn(payload)
 		end
 	end)
 

@@ -141,6 +141,14 @@ local SPECS: { [string]: Spec } = {
 			return count >= 1 and count <= 2 and isShortString(args[1]) and (count == 1 or isFiniteNumber(args[2]))
 		end,
 	},
+	-- Classificacao global (o servidor serve de uma copia em memoria).
+	RequestLeaderboard = {
+		direction = "ToServer",
+		maxPerSecond = 1,
+		validate = function(_args, count)
+			return count == 0
+		end,
+	},
 	-- Pedido de sincronizacao: quem entra a meio recebe a fase e o seu exercito.
 	RequestState = {
 		direction = "ToServer",
@@ -161,6 +169,7 @@ local SPECS: { [string]: Spec } = {
 	QueueState = { direction = "ToClient", maxPerSecond = 0 },
 	AdminState = { direction = "ToClient", maxPerSecond = 0 },
 	SpellCast = { direction = "ToClient", maxPerSecond = 0 },
+	Leaderboard = { direction = "ToClient", maxPerSecond = 0 },
 	Notice = { direction = "ToClient", maxPerSecond = 0 },
 }
 
