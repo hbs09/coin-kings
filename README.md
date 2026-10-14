@@ -93,7 +93,9 @@ Pela ordem definida no [CLAUDE.md](CLAUDE.md):
    7 arenas por troféus, cada uma a desbloquear uma tropa.
 5. ~~Bot de fila~~ — **feito**: passados 20 s de espera arranca um treino
    contra o bot, sem efeito nos troféus.
-6. **Leaderboard**, 2 feitiços e analytics mínimo.
+6. ~~2 feitiços~~ — **feito**: meteoro e gelo, comprados na preparação e
+   lançados à mão durante a batalha.
+7. **Leaderboard** e analytics mínimo.
 
 Critério para fechar a fase: alpha com **D1 ≥ 12%** e **≥ 2 partidas por
 sessão**.

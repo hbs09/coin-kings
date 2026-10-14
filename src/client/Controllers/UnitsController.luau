@@ -77,17 +77,19 @@ local function onSnapshot(payload: Types.SnapshotPayload)
 	local alive = payload.alive
 	local count = #alive
 
-	-- Array plano: id, x, z, hp
+	-- Array plano: id, x, z, hp, flags
 	local index = 1
-	while index + 3 <= count do
+	while index + 4 <= count do
 		local id = alive[index]
 		local entry = tracked[id]
 		if entry then
 			entry.targetX = alive[index + 1]
 			entry.targetZ = alive[index + 2]
 			UnitVisual.setHealth(entry.visual, alive[index + 3] / entry.maxHp)
+			-- Bit 1: congelado. Quem esta no gelo mostra-o.
+			UnitVisual.setFrozen(entry.visual, alive[index + 4] % 2 == 1)
 		end
-		index += 4
+		index += 5
 	end
 
 	for _, id in payload.dead do

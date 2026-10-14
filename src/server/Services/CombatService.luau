@@ -31,6 +31,7 @@ local Net = require(Shared.Net)
 local MatchConfig = require(Shared.Config.Match)
 local Maps = require(Shared.Config.Maps)
 local Troops = require(Shared.Config.Troops)
+local Spells = require(Shared.Config.Spells)
 
 type Unit = {
 	id: number,
@@ -42,6 +43,8 @@ type Unit = {
 	hp: number,
 	maxHp: number,
 	cooldown: number,
+	-- Segundos que ainda falta estar parado (feitico de congelar).
+	frozenFor: number,
 	alive: boolean,
 }
 
@@ -126,6 +129,7 @@ function CombatService.spawnRound(session: Session, entries: { Types.SpawnEntry 
 				hp = def.hp,
 				maxHp = def.hp,
 				cooldown = 0,
+				frozenFor = 0,
 				alive = true,
 			}
 			table.insert(session.order, entry.id)
@@ -136,6 +140,51 @@ function CombatService.spawnRound(session: Session, entries: { Types.SpawnEntry 
 
 	local roster: Types.RosterPayload = { units = entries }
 	sendToSession(session, "Roster", roster)
+end
+
+-- Feiticos ---------------------------------------------------------------------
+
+-- Aplica um feitico num ponto. `caster` e a equipa de quem lancou, para saber
+-- quem e inimigo. Devolve quantas unidades foram apanhadas.
+function CombatService.castSpell(session: Session, spellId: string, caster: Types.Team, x: number, z: number): number
+	local def = Spells.get(spellId)
+	if not def then
+		return 0
+	end
+
+	local hits = 0
+
+	for _, id in session.order do
+		local unit = session.units[id]
+		if unit and unit.alive then
+			local isEnemy = unit.team ~= caster
+			local matches = def.affects == "all"
+				or (def.affects == "enemies" and isEnemy)
+				or (def.affects == "allies" and not isEnemy)
+
+			if matches then
+				local dx = unit.x - x
+				local dz = unit.z - z
+				if dx * dx + dz * dz <= def.radius * def.radius then
+					hits += 1
+					if def.freezeDuration > 0 then
+						unit.frozenFor = math.max(unit.frozenFor, def.freezeDuration)
+					end
+					if def.damage > 0 then
+						unit.hp -= def.damage
+						if unit.hp <= 0 then
+							unit.hp = 0
+							unit.alive = false
+						end
+					end
+				end
+			end
+		end
+	end
+
+	-- Quem morreu desaparece no snapshot seguinte (no maximo 0,1 s depois); o
+	-- cliente ja desenhou o efeito a partir do SpellCast.
+	return hits
 end
 
 -- Simulacao -------------------------------------------------------------------
@@ -297,10 +346,10 @@ local function separate(session: Session)
 	local count = #order
 	for i = 1, count do
 		local a = session.units[order[i]]
-		if a and a.alive then
+		if a and a.alive and a.frozenFor <= 0 then
 			for j = i + 1, count do
 				local b = session.units[order[j]]
-				if b and b.alive then
+				if b and b.alive and b.frozenFor <= 0 then
 					local dx = b.x - a.x
 					local dz = b.z - a.z
 					local minDistance = a.def.radius + b.def.radius
@@ -336,7 +385,11 @@ local function step(session: Session, dt: number, dead: { number })
 		if unit and unit.alive then
 			unit.cooldown = math.max(0, unit.cooldown - dt)
 
-			if unit.def.healAmount then
+			if unit.frozenFor > 0 then
+				-- Congelado: nao anda, nao ataca, nao cura. O cooldown corre
+				-- na mesma, para nao sair do gelo a disparar de imediato.
+				unit.frozenFor = math.max(0, unit.frozenFor - dt)
+			elseif unit.def.healAmount then
 				stepSupport(session, unit, dt)
 			else
 				local target = nearestEnemy(session, unit)
@@ -376,7 +429,9 @@ local function broadcastSnapshot(session: Session, dead: { number })
 			alive[cursor + 2] = math.floor(unit.x * 100) / 100
 			alive[cursor + 3] = math.floor(unit.z * 100) / 100
 			alive[cursor + 4] = math.ceil(unit.hp)
-			cursor += 4
+			-- Campo de bits do estado: 1 = congelado.
+			alive[cursor + 5] = if unit.frozenFor > 0 then 1 else 0
+			cursor += 5
 		end
 	end
 

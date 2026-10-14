@@ -88,6 +88,8 @@ export type ArmyPayload = {
 	gold: number,
 	maxUnits: number,
 	units: { ArmyEntry },
+	-- Feitiços comprados para esta ronda; cada um é uma carga.
+	spells: { string },
 }
 
 export type SpawnEntry = {
@@ -103,7 +105,16 @@ export type RosterPayload = {
 	units: { SpawnEntry },
 }
 
--- `alive` é um array plano [id, x, z, hp, ...] para manter o pacote pequeno.
+-- Um feitiço que acabou de ser lançado, para o cliente desenhar o efeito.
+export type SpellCastPayload = {
+	spellId: string,
+	x: number,
+	z: number,
+}
+
+-- `alive` é um array plano [id, x, z, hp, flags, ...] para manter o pacote
+-- pequeno. `flags` é um campo de bits: 1 = congelado.
+export type UnitFlag = number
 export type SnapshotPayload = {
 	tick: number,
 	alive: { number },

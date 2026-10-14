@@ -86,6 +86,28 @@ local SPECS: { [string]: Spec } = {
 			return count == 1 and typeof(args[1]) == "boolean"
 		end,
 	},
+	-- Feiticos: comprar e vender na preparacao, lancar na batalha.
+	BuySpell = {
+		direction = "ToServer",
+		maxPerSecond = 10,
+		validate = function(args, count)
+			return count == 1 and isShortString(args[1])
+		end,
+	},
+	SellSpell = {
+		direction = "ToServer",
+		maxPerSecond = 10,
+		validate = function(args, count)
+			return count == 1 and isShortString(args[1])
+		end,
+	},
+	CastSpell = {
+		direction = "ToServer",
+		maxPerSecond = 5,
+		validate = function(args, count)
+			return count == 3 and isShortString(args[1]) and isCoord(args[2]) and isCoord(args[3])
+		end,
+	},
 	-- Repetir o tutorial a partir do lobby (a primeira vez e automatica).
 	StartTutorial = {
 		direction = "ToServer",
@@ -138,6 +160,7 @@ local SPECS: { [string]: Spec } = {
 	Profile = { direction = "ToClient", maxPerSecond = 0 },
 	QueueState = { direction = "ToClient", maxPerSecond = 0 },
 	AdminState = { direction = "ToClient", maxPerSecond = 0 },
+	SpellCast = { direction = "ToClient", maxPerSecond = 0 },
 	Notice = { direction = "ToClient", maxPerSecond = 0 },
 }
 

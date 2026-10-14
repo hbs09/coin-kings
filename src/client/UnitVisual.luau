@@ -18,6 +18,8 @@ local UnitVisual = {}
 
 export type Visual = {
 	part: BasePart,
+	baseColor: Color3,
+	frozen: boolean,
 	healthFill: Frame?,
 	def: Types.TroopDef,
 	pivotY: number,
@@ -100,6 +102,8 @@ function UnitVisual.create(def: Types.TroopDef, teamColor: Color3, parent: Insta
 
 	local visual: Visual = {
 		part = part,
+		baseColor = teamColor,
+		frozen = false,
 		healthFill = healthFill,
 		def = def,
 		pivotY = map.floorY + def.height / 2,
@@ -127,6 +131,17 @@ function UnitVisual.setHealth(visual: Visual, fraction: number)
 		then Color3.fromRGB(104, 200, 132)
 		elseif clamped > 0.25 then Color3.fromRGB(240, 196, 92)
 		else Color3.fromRGB(226, 94, 86)
+end
+
+-- Congelado: fica azulado e baco, para se perceber de relance quem esta parado
+-- por causa de um feitico e nao por falta de alvo.
+function UnitVisual.setFrozen(visual: Visual, frozen: boolean)
+	if visual.frozen == frozen then
+		return
+	end
+	visual.frozen = frozen
+	visual.part.Color = if frozen then Color3.fromRGB(150, 200, 236) else visual.baseColor
+	visual.part.Material = if frozen then Enum.Material.Ice else Enum.Material.SmoothPlastic
 end
 
 -- Verde quando a posicao e valida, vermelho quando nao e.

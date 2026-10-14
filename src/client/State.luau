@@ -41,6 +41,8 @@ local State = {
 
 	gold = 0,
 	maxUnits = 0,
+	-- Feiticos comprados para esta ronda (cada entrada e uma carga).
+	spells = {} :: { string },
 	army = {} :: { Types.ArmyEntry },
 }
 
@@ -52,6 +54,7 @@ type RoundResultFn = (payload: Types.RoundResultPayload) -> ()
 type MatchResultFn = (payload: Types.MatchResultPayload) -> ()
 type ProfileFn = (payload: Types.ProfilePayload) -> ()
 type QueueFn = () -> ()
+type SpellCastFn = (payload: Types.SpellCastPayload) -> ()
 type AdminFn = (enabled: boolean) -> ()
 type NoticeFn = (payload: Types.NoticePayload) -> ()
 
@@ -63,6 +66,7 @@ local roundResultFns: { RoundResultFn } = {}
 local matchResultFns: { MatchResultFn } = {}
 local profileFns: { ProfileFn } = {}
 local queueFns: { QueueFn } = {}
+local spellCastFns: { SpellCastFn } = {}
 local adminFns: { AdminFn } = {}
 local noticeFns: { NoticeFn } = {}
 
@@ -96,6 +100,10 @@ end
 
 function State.onQueueState(fn: QueueFn)
 	table.insert(queueFns, fn)
+end
+
+function State.onSpellCast(fn: SpellCastFn)
+	table.insert(spellCastFns, fn)
 end
 
 function State.onAdminState(fn: AdminFn)
@@ -156,6 +164,7 @@ function State.init()
 		State.gold = payload.gold
 		State.maxUnits = payload.maxUnits
 		State.army = payload.units
+		State.spells = payload.spells
 		for _, fn in armyFns do
 			fn(payload)
 		end
@@ -202,6 +211,13 @@ function State.init()
 		State.waiting = tonumber(raw.waiting) or 0
 		for _, fn in queueFns do
 			fn()
+		end
+	end)
+
+	Net.onClientEvent("SpellCast", function(raw: any)
+		local payload = raw :: Types.SpellCastPayload
+		for _, fn in spellCastFns do
+			fn(payload)
 		end
 	end)
 

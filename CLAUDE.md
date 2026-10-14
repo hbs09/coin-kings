@@ -75,8 +75,13 @@ IA: procura o inimigo válido mais próximo, aproxima-se até ao alcance e ataca
 
 **A vigiar no balanceamento:** o curandeiro cura 14 hp/s por 100 de ouro, de forma sustentada (`healAmount` 20 a 0,7/s). Depois do primeiro playtest o alcance desceu de 18 para 12 e a cura de 28 para 20: curava de longe demais, o que o tornava seguro de mais. Com alcance 12 tem de ficar logo atrás da linha da frente e fica ao alcance de um cavaleiro pelo flanco. Se continuar forte de mais, mexer outra vez em `Config/Troops`.
 
-## Feitiços (Config/Spells) — máx. 2 por ronda
-meteor 150 (dano em área pequena) · divine_shield 120 (5 s de invulnerabilidade em área) · freeze 100 (3 s de paragem em área) · fury 130 (+40% de velocidade e dano durante 6 s). Lançados durante a batalha; o servidor valida o cooldown e a área.
+## Feitiços (Config/Spells) — máx. 2 por ronda — meteoro e gelo feitos
+**meteor 150** (raio 8, 120 de dano) e **freeze 100** (raio 10, 3 s parado) estão feitos. Faltam, para o lançamento: divine_shield 120 (5 s de invulnerabilidade em área) e fury 130 (+40% de velocidade e dano durante 6 s).
+
+- Compram-se na preparação **com o mesmo ouro das tropas** — um meteoro são sete soldados que não se compraram — e lançam-se à mão durante a batalha.
+- Cada feitiço comprado é **uma carga**: lança-se uma vez e sai da lista.
+- O servidor valida a fase, a carga, o intervalo entre lançamentos e se a área cai dentro do campo.
+- Congelado não anda, não ataca, não cura e não é empurrado pela separação. O estado viaja no snapshot (bit 1) e o cliente pinta-o de azul: ver uma unidade parada sem perceber porquê é das piores coisas num jogo que corre sozinho.
 
 ## Limites técnicos
 - Máx. **40 unidades por jogador**. O objetivo são 60 fps em telemóvel.
@@ -141,7 +146,7 @@ Battle Pass, skins de tropas (a mesma hitbox), efeitos de feitiço, emotes, band
 
 ## Roadmap — trabalhar fase a fase e não avançar sem cumprir o critério
 1. **Protótipo — FEITO (14/10/2026).** Mapa plano com duas metades; soldier, archer e knight; compra validada no servidor; posicionamento por arrastar; batalha até um lado morrer; 1 ronda. *Critério cumprido:* 2 jogadores locais jogaram uma partida completa sem erros na Output.
-2. **MVP:** ~~vários jogos por servidor~~, ~~melhor de 3~~, ~~as 8 tropas~~, ~~DataService~~, ~~tutorial~~, ~~arenas e troféus~~, ~~bot de fila~~ (feitos); faltam 2 feitiços, leaderboard, analytics mínimo, UI para telemóvel. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
+2. **MVP:** ~~vários jogos por servidor~~, ~~melhor de 3~~, ~~as 8 tropas~~, ~~DataService~~, ~~tutorial~~, ~~arenas e troféus~~, ~~bot de fila~~, ~~2 feitiços~~ (feitos); faltam leaderboard, analytics mínimo, UI para telemóvel. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
 3. **Lançamento:** 4 feitiços, mapa com rio e ponte, modo casual, missões, nível de conta, mais capítulos de campanha, analytics completo (`AnalyticsService`: funil do tutorial, taxa de vitória por tropa, revanche).
 4. **Temporada 1:** Battle Pass, escalões e temporadas, amigos, espectador, replays, eventos.
 

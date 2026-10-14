@@ -95,6 +95,10 @@ local pt: { [string]: string } = {
 	wrong_phase = "Só podes mexer no exército na preparação",
 	opponent_left = "O adversário saiu",
 	empty_army = "Coloca pelo menos uma unidade!",
+	spell_locked = "Esse feitiço ainda não está disponível",
+	spell_limit = "Máximo de {1} feitiços por ronda",
+	spell_wrong_phase = "Os feitiços lançam-se durante a batalha",
+	spell_out_of_bounds = "Aponta para dentro do campo",
 	server_full = "Servidor cheio, tenta daqui a pouco",
 	server_full = "Servidor cheio, tenta daqui a pouco",
 }
@@ -177,6 +181,10 @@ local en: { [string]: string } = {
 	wrong_phase = "You can only edit your army during preparation",
 	opponent_left = "The opponent left",
 	empty_army = "Place at least one unit!",
+	spell_locked = "That spell is not available yet",
+	spell_limit = "Up to {1} spells per round",
+	spell_wrong_phase = "Spells are cast during the battle",
+	spell_out_of_bounds = "Aim inside the field",
 	server_full = "Server is full, try again shortly",
 	server_full = "Server is full, try again shortly",
 }
@@ -219,6 +227,22 @@ function Locale.get(key: string, ...: any): string
 		text = string.gsub(text, "{" .. index .. "}", tostring(value))
 	end
 	return text
+end
+
+local spellNames: { [string]: { [string]: string } } = {
+	pt = {
+		meteor = "Meteoro",
+		freeze = "Gelo",
+	},
+	en = {
+		meteor = "Meteor",
+		freeze = "Freeze",
+	},
+}
+
+function Locale.spellName(spellId: string): string
+	local names = spellNames[Locale.language] or spellNames.pt
+	return names[spellId] or spellId
 end
 
 function Locale.troopName(troopId: string): string

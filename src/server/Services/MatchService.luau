@@ -42,6 +42,7 @@ local RankConfig = require(Shared.Config.Rank)
 local AdminConfig = require(Shared.Config.Admin)
 local Maps = require(Shared.Config.Maps)
 local Troops = require(Shared.Config.Troops)
+local Spells = require(Shared.Config.Spells)
 local Placement = require(Shared.Util.Placement)
 
 local BotService = require(script.Parent.BotService)
@@ -52,10 +53,14 @@ local EconomyService = require(script.Parent.EconomyService)
 local CombatService = require(script.Parent.CombatService)
 
 type Side = {
-	-- nil = bot (campanha). E a unica diferenca entre os dois modos.
+	-- nil = bot. E a unica diferenca entre os modos.
 	player: Player?,
 	team: Types.Team,
 	army: { Types.ArmyEntry },
+	-- Feiticos comprados para esta ronda. Cada um e uma carga: lanca-se uma
+	-- vez e sai da lista.
+	spells: { string },
+	lastCast: number,
 	ready: boolean,
 	lostLastRound: boolean,
 }
@@ -167,6 +172,7 @@ local function sendArmy(player: Player)
 		gold = EconomyService.getGold(player),
 		maxUnits = MatchConfig.maxUnitsPerPlayer,
 		units = if side then side.army else {},
+		spells = if side then side.spells else {},
 	}
 	Net.fireClient("ArmyUpdate", player, payload)
 end
@@ -374,6 +380,97 @@ local function handleSell(player: Player, unitId: number)
 	sendArmy(player)
 end
 
+local function handleBuySpell(player: Player, spellId: string)
+	local match, side = editableSide(player)
+	if not match or not side then
+		return
+	end
+
+	if not Spells.isAvailable(spellId) then
+		notify(player, "spell_locked")
+		return
+	end
+
+	local def = Spells.get(spellId)
+	if not def then
+		return
+	end
+
+	if #side.spells >= Spells.maxPerRound then
+		notify(player, "spell_limit", tostring(Spells.maxPerRound))
+		return
+	end
+
+	if not EconomyService.trySpend(player, def.cost) then
+		notify(player, "not_enough_gold")
+		return
+	end
+
+	table.insert(side.spells, spellId)
+	sendArmy(player)
+end
+
+local function handleSellSpell(player: Player, spellId: string)
+	local match, side = editableSide(player)
+	if not match or not side then
+		return
+	end
+
+	local index = table.find(side.spells, spellId)
+	if not index then
+		return
+	end
+
+	table.remove(side.spells, index)
+	local def = Spells.get(spellId)
+	if def then
+		EconomyService.refund(player, def.cost)
+	end
+	sendArmy(player)
+end
+
+local function handleCastSpell(player: Player, spellId: string, x: number, z: number)
+	local match = matchByPlayer[player]
+	if not match or match.phase ~= "Battle" then
+		notify(player, "spell_wrong_phase")
+		return
+	end
+
+	local side = sideOf(match, player)
+	if not side then
+		return
+	end
+
+	local index = table.find(side.spells, spellId)
+	if not index then
+		return
+	end
+
+	-- Intervalo minimo entre lancamentos: nao se despeja tudo no mesmo instante.
+	local timestamp = now()
+	if timestamp - side.lastCast < Spells.castCooldown then
+		return
+	end
+
+	-- A area tem de cair dentro do campo; o resto do mapa nao e alvo.
+	local clampedX, clampedZ = Maps.clampToArena(map, x, z, 0)
+	if math.abs(clampedX - x) > 0.01 or math.abs(clampedZ - z) > 0.01 then
+		notify(player, "spell_out_of_bounds")
+		return
+	end
+
+	table.remove(side.spells, index)
+	side.lastCast = timestamp
+	CombatService.castSpell(match.session, spellId, side.team, x, z)
+
+	-- Os dois lados veem o efeito: quem lanca e quem o leva.
+	local payload: Types.SpellCastPayload = { spellId = spellId, x = x, z = z }
+	for _, other in playersOf(match) do
+		Net.fireClient("SpellCast", other, payload)
+	end
+	sendArmy(player)
+end
+
 local function handleReady(player: Player, ready: boolean)
 	local match = matchByPlayer[player]
 	if not match or match.phase ~= "Prep" then
@@ -450,6 +547,8 @@ local function startRound(match: Match, roundNumber: number)
 
 	for _, side in match.sides do
 		side.army = {}
+		side.spells = {}
+		side.lastCast = 0
 		side.ready = false
 
 		local player = side.player
@@ -684,7 +783,15 @@ local function newMatch(slot: number, mode: Types.MatchMode): Match
 end
 
 local function newSide(player: Player?, team: Types.Team): Side
-	return { player = player, team = team, army = {}, ready = false, lostLastRound = false }
+	return {
+		player = player,
+		team = team,
+		army = {},
+		spells = {},
+		lastCast = 0,
+		ready = false,
+		lostLastRound = false,
+	}
 end
 
 -- API -------------------------------------------------------------------------
@@ -847,6 +954,18 @@ function MatchService.init()
 
 	Net.onServerEvent("SellUnit", function(player: Player, unitId: any)
 		handleSell(player, unitId :: number)
+	end)
+
+	Net.onServerEvent("BuySpell", function(player: Player, spellId: any)
+		handleBuySpell(player, spellId :: string)
+	end)
+
+	Net.onServerEvent("SellSpell", function(player: Player, spellId: any)
+		handleSellSpell(player, spellId :: string)
+	end)
+
+	Net.onServerEvent("CastSpell", function(player: Player, spellId: any, x: any, z: any)
+		handleCastSpell(player, spellId :: string, x :: number, z :: number)
 	end)
 
 	Net.onServerEvent("SetReady", function(player: Player, ready: any)
