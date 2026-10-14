@@ -76,11 +76,12 @@ IA: procura o inimigo válido mais próximo, aproxima-se até ao alcance e ataca
 **A vigiar no balanceamento:** o curandeiro cura 14 hp/s por 100 de ouro, de forma sustentada (`healAmount` 20 a 0,7/s). Depois do primeiro playtest o alcance desceu de 18 para 12 e a cura de 28 para 20: curava de longe demais, o que o tornava seguro de mais. Com alcance 12 tem de ficar logo atrás da linha da frente e fica ao alcance de um cavaleiro pelo flanco. Se continuar forte de mais, mexer outra vez em `Config/Troops`.
 
 ## Feitiços (Config/Spells) — máx. 2 por ronda — meteoro e gelo feitos
-**meteor 150** (raio 8, 120 de dano) e **freeze 100** (raio 10, 3 s parado) estão feitos. Faltam, para o lançamento: divine_shield 120 (5 s de invulnerabilidade em área) e fury 130 (+40% de velocidade e dano durante 6 s).
+**meteor 150** (raio 6,5, 75 de dano) e **freeze 100** (raio 7, 2 s parado) estão feitos. Faltam, para o lançamento: divine_shield 120 (5 s de invulnerabilidade em área) e fury 130 (+40% de velocidade e dano durante 6 s).
 
 - Compram-se na preparação **com o mesmo ouro das tropas** — um meteoro são sete soldados que não se compraram — e lançam-se à mão durante a batalha.
 - Cada feitiço comprado é **uma carga**: lança-se uma vez e sai da lista.
 - O servidor valida a fase, a carga, o intervalo entre lançamentos e se a área cai dentro do campo.
+- **A vigiar no balanceamento:** os valores iniciais (meteoro 120 de dano em raio 8, gelo 3 s em raio 10) eram fortes demais — um feitiço limpava uma linha ou parava meia batalha. Baixados no primeiro playtest; se continuarem a decidir rondas sozinhos, é `Config/Spells`.
 - Congelado não anda, não ataca, não cura e não é empurrado pela separação. O estado viaja no snapshot (bit 1) e o cliente pinta-o de azul: ver uma unidade parada sem perceber porquê é das piores coisas num jogo que corre sozinho.
 
 ## Limites técnicos

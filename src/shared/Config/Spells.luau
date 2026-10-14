@@ -41,22 +41,28 @@ Spells.maxPerRound = 2
 Spells.castCooldown = 1
 
 local defs: { [SpellId]: SpellDef } = {
+	-- Depois do primeiro playtest: 120 de dano num raio de 8 limpava uma linha
+	-- inteira de uma vez, e um feitico nao pode decidir a ronda sozinho. A 75
+	-- mata arqueiros, deixa os soldados a 30 de vida e abre caminho — quem
+	-- remata e o exercito.
 	meteor = {
 		id = "meteor",
 		cost = 150,
-		radius = 8,
-		damage = 120,
+		radius = 6.5,
+		damage = 75,
 		freezeDuration = 0,
 		affects = "enemies",
 		color = Color3.fromRGB(236, 118, 68),
 	},
 
+	-- 3 s a parar tudo num raio de 10 era meia batalha: os combates duram 10 a
+	-- 20 s. A 2 s e raio 7 continua a virar uma troca, sem a ganhar sozinho.
 	freeze = {
 		id = "freeze",
 		cost = 100,
-		radius = 10,
+		radius = 7,
 		damage = 0,
-		freezeDuration = 3,
+		freezeDuration = 2,
 		affects = "enemies",
 		color = Color3.fromRGB(126, 198, 236),
 	},
