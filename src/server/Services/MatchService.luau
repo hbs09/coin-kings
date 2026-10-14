@@ -593,7 +593,12 @@ local function runMatch(match: Match)
 		Net.fireClient("MatchResult", player, payload)
 	end
 
-	setPhase(match, "MatchEnd", MatchConfig.matchEndDuration)
+	-- No tutorial ninguem e empurrado para fora: o ecra de fim tem botoes e
+	-- este tempo e so a rede de seguranca.
+	local endDuration = if match.mode == "tutorial"
+		then MatchConfig.tutorialResultTimeout
+		else MatchConfig.matchEndDuration
+	setPhase(match, "MatchEnd", endDuration)
 	waitPhaseEnd(match)
 	closeMatch(match)
 end

@@ -23,6 +23,10 @@ Match.revealDuration = 3
 Match.battleDuration = 90
 Match.roundEndDuration = 5
 Match.matchEndDuration = 8
+-- No tutorial o ecra de fim tem botoes: quem decide quando sair e o jogador.
+-- Isto e so a rede de seguranca para nao deixar uma arena ocupada por alguem
+-- que foi almocar.
+Match.tutorialResultTimeout = 180
 
 -- Limites técnicos
 -- Partidas em paralelo no mesmo servidor. Cada uma ocupa uma arena (um "slot").

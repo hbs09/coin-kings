@@ -48,6 +48,18 @@ local sellButton: TextButton
 local bannerFrame: Frame
 local bannerTitle: TextLabel
 local bannerSubtitle: TextLabel
+local bannerActions: Frame
+local lobbyButton: TextButton
+local retryButton: TextButton
+local playButton: TextButton
+
+-- O que fazer assim que voltarmos ao lobby. Sair de uma partida e pedir ao
+-- servidor e esperar; so quando ele confirma o lobby e que se pode arrancar
+-- outra coisa.
+local pendingAfterLobby: string? = nil
+-- Enquanto o ecra de fim tem botoes, o cronometro nao aparece: o tempo que
+-- resta e so a rede de seguranca do servidor e nao e da conta do jogador.
+local hideTimer = false
 local shopContainer: Frame
 
 local function phaseKey(phase: Types.MatchPhase): string
@@ -317,7 +329,7 @@ local function buildOverlays(root: ScreenGui)
 		Name = "Banner",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(0.5, 0, 0.42, 0),
-		Size = UDim2.new(0, 460, 0, 130),
+		Size = UDim2.new(0, 460, 0, 196),
 		BackgroundColor3 = colors.panel,
 		BackgroundTransparency = 0.2,
 		BorderSizePixel = 0,
@@ -337,6 +349,46 @@ local function buildOverlays(root: ScreenGui)
 		TextSize = 44,
 		Parent = bannerFrame,
 	}) :: TextLabel
+
+	bannerActions = make("Frame", {
+		Name = "Actions",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -14),
+		Size = UDim2.new(1, -28, 0, 44),
+		BackgroundTransparency = 1,
+		Visible = false,
+		Parent = bannerFrame,
+	}) :: Frame
+
+	local actionsLayout = Instance.new("UIListLayout")
+	actionsLayout.FillDirection = Enum.FillDirection.Horizontal
+	actionsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	actionsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	actionsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	actionsLayout.Padding = UDim.new(0, 8)
+	actionsLayout.Parent = bannerActions
+
+	local function actionButton(name: string, label: string, order: number, primary: boolean): TextButton
+		local button = make("TextButton", {
+			Name = name,
+			Size = UDim2.new(0, 138, 1, 0),
+			BackgroundColor3 = if primary then colors.good else colors.panelLight,
+			BorderSizePixel = 0,
+			AutoButtonColor = true,
+			Font = UIUtil.font,
+			Text = label,
+			TextColor3 = if primary then Color3.fromRGB(16, 24, 18) else colors.text,
+			TextSize = 15,
+			LayoutOrder = order,
+			Parent = bannerActions,
+		}) :: TextButton
+		UIUtil.corner(button, 8)
+		return button
+	end
+
+	retryButton = actionButton("Retry", Locale.get("result_retry"), 1, false)
+	lobbyButton = actionButton("Lobby", Locale.get("result_lobby"), 2, true)
+	playButton = actionButton("Play", Locale.get("result_play"), 3, false)
 
 	bannerSubtitle = make("TextLabel", {
 		Name = "Subtitle",
@@ -373,7 +425,17 @@ local function refreshHud()
 	-- No lobby o painel de escolha ocupa o ecra: o HUD da partida sai da frente.
 	topBar.Visible = not inLobby
 	resourceBar.Visible = not inLobby
-	leaveButton.Visible = not inLobby and isTutorial
+
+	-- Depois do tutorial a saida e por botao, nao por cronometro.
+	local showResultActions = isTutorial and phase == "MatchEnd"
+	bannerActions.Visible = showResultActions
+	hideTimer = showResultActions
+	if showResultActions then
+		timerLabel.Text = ""
+	end
+	-- "Desistir" nao faz sentido com a partida ja acabada: ai mandam os botoes
+	-- do ecra de fim.
+	leaveButton.Visible = not inLobby and isTutorial and phase ~= "MatchEnd"
 
 	goldLabel.Text = `{Locale.get("gold")}: {State.gold}`
 	unitsLabel.Text = Locale.get("units", State.unitCount(), MatchConfig.maxUnitsPerPlayer)
@@ -412,6 +474,9 @@ end
 local lastSecond = -1
 
 local function refreshClock()
+	if hideTimer then
+		return
+	end
 	local remaining = State.timeLeft()
 	local whole = math.floor(remaining + 0.5)
 	if whole ~= lastSecond then
@@ -510,10 +575,41 @@ function UIController.start()
 	end)
 
 	leaveButton.MouseButton1Click:Connect(function()
+		pendingAfterLobby = nil
 		Net.fireServer("LeaveMatch")
 	end)
 
+	-- Os tres botoes do ecra de fim pedem para sair e deixam dito o que fazer
+	-- a seguir; o resto acontece quando o servidor confirmar o lobby.
+	local function leaveThen(action: string?)
+		pendingAfterLobby = action
+		UIController.setBanner("", "", false)
+		Net.fireServer("LeaveMatch")
+	end
+
+	lobbyButton.MouseButton1Click:Connect(function()
+		leaveThen(nil)
+	end)
+
+	retryButton.MouseButton1Click:Connect(function()
+		leaveThen("tutorial")
+	end)
+
+	playButton.MouseButton1Click:Connect(function()
+		leaveThen("queue")
+	end)
+
 	State.onMatchState(function(payload: Types.MatchStatePayload)
+		if payload.phase == "Lobby" and pendingAfterLobby then
+			local action = pendingAfterLobby
+			pendingAfterLobby = nil
+			if action == "tutorial" then
+				Net.fireServer("StartTutorial")
+			elseif action == "queue" then
+				Net.fireServer("SetQueued", true)
+			end
+		end
+
 		if payload.phase ~= "Prep" then
 			setSellMode(false)
 		end
