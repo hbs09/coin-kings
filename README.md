@@ -11,6 +11,7 @@ O contexto completo, a estratégia e os critérios de paragem estão em
 **Estado: fase 1 do roadmap (protótipo) — concluída.** Mapa plano com duas
 metades, 3 tropas (soldier, archer, knight), compra e posicionamento validados
 no servidor, 1 ronda até um lado morrer. Testado em Studio com 2 jogadores.
+Já com a arquitetura de **6 partidas em paralelo por servidor**.
 
 ## Arrancar
 
@@ -78,9 +79,8 @@ src/
 
 Pela ordem definida no [CLAUDE.md](CLAUDE.md):
 
-1. **Vários jogos por servidor** — o `MatchService` tem hoje estado global (uma
-   partida por servidor); com servidores de 2 jogadores o matchmaking não
-   sobrevive. Fazer antes do Elo.
+1. ~~Vários jogos por servidor~~ — **feito**: 6 partidas em paralelo, uma arena
+   por slot. Falta pôr **Max Players = 12** nas Game Settings do lugar.
 2. **Melhor de 3 e as 8 tropas** — em `shared/Config/Match.luau` basta
    `roundsToWin = 2`, `maxRounds = 3` e o `troopPool` completo; falta só a IA do
    curandeiro (procura de aliado ferido) no `CombatService`.

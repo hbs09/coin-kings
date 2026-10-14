@@ -2,9 +2,16 @@
 --[[
 	CombatService — a batalha, so com numeros.
 
+	Cada partida tem a sua Session: o servidor corre varias ao mesmo tempo, uma
+	por arena. Nada de estado global aqui.
+
 	O servidor nao cria uma Instance por unidade: simula posicoes em tick fixo
-	(Config/Match.tickRate) e replica o minimo (id, x, z, hp). O cliente constroi
-	os modelos a partir do Roster e interpola entre snapshots.
+	(Config/Match.tickRate) e replica o minimo (id, x, z, hp) **so aos dois
+	jogadores da partida**. O cliente constroi os modelos a partir do Roster e
+	interpola entre snapshots.
+
+	As coordenadas sao sempre locais a arena; o deslocamento do slot e assunto
+	do cliente, na altura de desenhar.
 
 	IA desta fase: procurar o inimigo vivo mais proximo, aproximar-se ate ao
 	alcance e atacar respeitando o attackSpeed. O dano usa bonusVs e, quando a
@@ -35,42 +42,69 @@ type Unit = {
 	alive: boolean,
 }
 
-local CombatService = {}
+export type Session = {
+	units: { [number]: Unit },
+	order: { number }, -- iteracao deterministica
+	currentTick: number,
+	running: boolean,
+	stopRequested: boolean,
+	-- Quem recebe o Roster e os Snapshots desta partida.
+	recipients: { Player },
+}
 
-local units: { [number]: Unit } = {}
-local order: { number } = {} -- iteracao deterministica
-local currentTick = 0
-local running = false
-local stopRequested = false
+local CombatService = {}
 
 function CombatService.init() end
 function CombatService.start() end
 
--- Limpeza ---------------------------------------------------------------------
+-- Ciclo de vida ---------------------------------------------------------------
 
-function CombatService.clear()
-	units = {}
-	order = {}
-	currentTick = 0
-	running = false
-	stopRequested = false
+function CombatService.createSession(recipients: { Player }): Session
+	return {
+		units = {},
+		order = {},
+		currentTick = 0,
+		running = false,
+		stopRequested = false,
+		recipients = recipients,
+	}
 end
 
-function CombatService.stop()
-	stopRequested = true
+function CombatService.clear(session: Session)
+	session.units = {}
+	session.order = {}
+	session.currentTick = 0
+	session.running = false
+	session.stopRequested = false
+end
+
+function CombatService.stop(session: Session)
+	session.stopRequested = true
+end
+
+function CombatService.setRecipients(session: Session, recipients: { Player })
+	session.recipients = recipients
+end
+
+local function sendToSession(session: Session, remoteName: string, payload: any)
+	for _, player in session.recipients do
+		if player.Parent then
+			Net.fireClient(remoteName, player, payload)
+		end
+	end
 end
 
 -- Criacao ---------------------------------------------------------------------
 
--- Cria as unidades da ronda e manda o roster completo. E aqui que os exercitos
--- deixam de ser secretos, por isso so se chama na fase Reveal.
-function CombatService.spawnRound(entries: { Types.SpawnEntry })
-	CombatService.clear()
+-- Cria as unidades da ronda e manda o roster. E aqui que os exercitos deixam de
+-- ser secretos, por isso so se chama na fase Reveal.
+function CombatService.spawnRound(session: Session, entries: { Types.SpawnEntry })
+	CombatService.clear(session)
 
 	for _, entry in entries do
 		local def = Troops.get(entry.troopId)
 		if def then
-			units[entry.id] = {
+			session.units[entry.id] = {
 				id = entry.id,
 				team = entry.team,
 				troopId = entry.troopId,
@@ -82,23 +116,23 @@ function CombatService.spawnRound(entries: { Types.SpawnEntry })
 				cooldown = 0,
 				alive = true,
 			}
-			table.insert(order, entry.id)
+			table.insert(session.order, entry.id)
 		end
 	end
 
-	table.sort(order)
+	table.sort(session.order)
 
 	local roster: Types.RosterPayload = { units = entries }
-	Net.fireAllClients("Roster", roster)
+	sendToSession(session, "Roster", roster)
 end
 
 -- Simulacao -------------------------------------------------------------------
 
-local function nearestEnemy(unit: Unit): Unit?
+local function nearestEnemy(session: Session, unit: Unit): Unit?
 	local best: Unit? = nil
 	local bestDistance = math.huge
-	for _, id in order do
-		local other = units[id]
+	for _, id in session.order do
+		local other = session.units[id]
 		if other and other.alive and other.team ~= unit.team then
 			local dx = other.x - unit.x
 			local dz = other.z - unit.z
@@ -122,7 +156,7 @@ local function applyDamage(attacker: Unit, victim: Unit, dead: { number })
 	end
 end
 
-local function attack(unit: Unit, target: Unit, dead: { number })
+local function attack(session: Session, unit: Unit, target: Unit, dead: { number })
 	unit.cooldown = 1 / unit.def.attackSpeed
 
 	local aoeRadius = unit.def.aoeRadius
@@ -131,8 +165,8 @@ local function attack(unit: Unit, target: Unit, dead: { number })
 		return
 	end
 
-	for _, id in order do
-		local other = units[id]
+	for _, id in session.order do
+		local other = session.units[id]
 		if other and other.alive and other.team ~= unit.team then
 			local dx = other.x - target.x
 			local dz = other.z - target.z
@@ -144,13 +178,14 @@ local function attack(unit: Unit, target: Unit, dead: { number })
 end
 
 -- Empurra unidades sobrepostas, para nao ficarem todas no mesmo ponto.
-local function separate()
+local function separate(session: Session)
+	local order = session.order
 	local count = #order
 	for i = 1, count do
-		local a = units[order[i]]
+		local a = session.units[order[i]]
 		if a and a.alive then
 			for j = i + 1, count do
-				local b = units[order[j]]
+				local b = session.units[order[j]]
 				if b and b.alive then
 					local dx = b.x - a.x
 					local dz = b.z - a.z
@@ -179,15 +214,15 @@ local function separate()
 	end
 end
 
-local function step(dt: number, dead: { number })
+local function step(session: Session, dt: number, dead: { number })
 	local map = Maps.default
 
-	for _, id in order do
-		local unit = units[id]
+	for _, id in session.order do
+		local unit = session.units[id]
 		if unit and unit.alive then
 			unit.cooldown = math.max(0, unit.cooldown - dt)
 
-			local target = nearestEnemy(unit)
+			local target = nearestEnemy(session, unit)
 			if target then
 				local dx = target.x - unit.x
 				local dz = target.z - unit.z
@@ -196,7 +231,7 @@ local function step(dt: number, dead: { number })
 
 				if distance <= reach then
 					if unit.cooldown <= 0 then
-						attack(unit, target, dead)
+						attack(session, unit, target, dead)
 					end
 				elseif distance > 1e-4 then
 					local stepLength = math.min(unit.def.moveSpeed * dt, distance - reach)
@@ -209,10 +244,10 @@ local function step(dt: number, dead: { number })
 		end
 	end
 
-	separate()
+	separate(session)
 
-	for _, id in order do
-		local unit = units[id]
+	for _, id in session.order do
+		local unit = session.units[id]
 		if unit and unit.alive then
 			unit.x, unit.z = Maps.clampToArena(map, unit.x, unit.z, unit.def.radius)
 		end
@@ -221,11 +256,11 @@ end
 
 -- Replicacao ------------------------------------------------------------------
 
-local function broadcastSnapshot(dead: { number })
+local function broadcastSnapshot(session: Session, dead: { number })
 	local alive: { number } = {}
 	local cursor = 0
-	for _, id in order do
-		local unit = units[id]
+	for _, id in session.order do
+		local unit = session.units[id]
 		if unit and unit.alive then
 			alive[cursor + 1] = unit.id
 			alive[cursor + 2] = math.floor(unit.x * 100) / 100
@@ -235,17 +270,17 @@ local function broadcastSnapshot(dead: { number })
 		end
 	end
 
-	local snapshot: Types.SnapshotPayload = { tick = currentTick, alive = alive, dead = dead }
-	Net.fireAllClients("Snapshot", snapshot)
+	local snapshot: Types.SnapshotPayload = { tick = session.currentTick, alive = alive, dead = dead }
+	sendToSession(session, "Snapshot", snapshot)
 end
 
 -- Resultado -------------------------------------------------------------------
 
-local function tally(team: Types.Team): (number, number)
+local function tally(session: Session, team: Types.Team): (number, number)
 	local count = 0
 	local value = 0
-	for _, id in order do
-		local unit = units[id]
+	for _, id in session.order do
+		local unit = session.units[id]
 		if unit and unit.alive and unit.team == team then
 			count += 1
 			value += unit.def.cost
@@ -254,9 +289,9 @@ local function tally(team: Types.Team): (number, number)
 	return count, value
 end
 
-local function buildResult(reason: Types.RoundEndReason): Types.RoundResultPayload
-	local countA, valueA = tally("A")
-	local countB, valueB = tally("B")
+local function buildResult(session: Session, reason: Types.RoundEndReason): Types.RoundResultPayload
+	local countA, valueA = tally(session, "A")
+	local countB, valueB = tally(session, "B")
 
 	local winner: Types.Team? = nil
 	if reason == "elimination" then
@@ -287,15 +322,15 @@ local function buildResult(reason: Types.RoundEndReason): Types.RoundResultPaylo
 	}
 end
 
--- Corre a batalha ate um lado morrer ou o tempo acabar. Bloqueia a thread do
--- MatchService, que e quem conduz a maquina de estados.
-function CombatService.runBattle(maxDuration: number): Types.RoundResultPayload
+-- Corre a batalha ate um lado morrer ou o tempo acabar. Bloqueia a thread da
+-- partida (cada partida tem a sua), que e quem conduz a maquina de estados.
+function CombatService.runBattle(session: Session, maxDuration: number): Types.RoundResultPayload
 	local interval = 1 / MatchConfig.tickRate
 	local accumulator = 0
 	local elapsed = 0
 
-	running = true
-	stopRequested = false
+	session.running = true
+	session.stopRequested = false
 
 	while true do
 		local dt: number = RunService.Heartbeat:Wait()
@@ -308,28 +343,28 @@ function CombatService.runBattle(maxDuration: number): Types.RoundResultPayload
 		while accumulator >= interval and budget > 0 do
 			accumulator -= interval
 			budget -= 1
-			currentTick += 1
+			session.currentTick += 1
 
 			local dead: { number } = {}
-			step(interval, dead)
-			broadcastSnapshot(dead)
+			step(session, interval, dead)
+			broadcastSnapshot(session, dead)
 
-			if stopRequested then
-				running = false
-				return buildResult("aborted")
+			if session.stopRequested then
+				session.running = false
+				return buildResult(session, "aborted")
 			end
 
-			local countA = tally("A")
-			local countB = tally("B")
+			local countA = tally(session, "A")
+			local countB = tally(session, "B")
 			if countA == 0 or countB == 0 then
-				running = false
-				return buildResult("elimination")
+				session.running = false
+				return buildResult(session, "elimination")
 			end
 		end
 
 		if elapsed >= maxDuration then
-			running = false
-			return buildResult("timeout")
+			session.running = false
+			return buildResult(session, "timeout")
 		end
 	end
 end

@@ -23,6 +23,9 @@ export type MapDef = {
 	width: number,
 	length: number,
 	floorY: number,
+	-- Distancia em X entre arenas vizinhas. Larga o suficiente para a arena do
+	-- lado ficar fora do enquadramento da camara.
+	arenaSpacing: number,
 	-- Faixa neutra (meia-largura) em volta de Z = 0 onde não se pode construir.
 	neutralBand: number,
 	-- Margem interior em que também não se pode construir.
@@ -48,6 +51,7 @@ local flatArena: MapDef = {
 	width = 90,
 	length = 150,
 	floorY = 0,
+	arenaSpacing = 500,
 	neutralBand = 8,
 	edgeMargin = 5,
 	-- Com estes valores o campo todo (150 studs de profundidade) cabe no ecra
@@ -96,11 +100,18 @@ function Maps.teamColor(map: MapDef, team: Types.Team): Color3
 	return if team == "A" then map.teamAColor else map.teamBColor
 end
 
+-- Deslocamento em X da arena de um slot. As coordenadas das unidades sao sempre
+-- LOCAIS a arena (e as regras de Config continuam a valer); o offset so entra
+-- quando se desenha no mundo ou se posiciona a camara.
+function Maps.arenaOffset(map: MapDef, slot: number): number
+	return slot * map.arenaSpacing
+end
+
 -- Câmara fixa por equipa: atrás da própria metade, a olhar para o centro.
-function Maps.cameraCFrame(map: MapDef, team: Types.Team): CFrame
+function Maps.cameraCFrame(map: MapDef, team: Types.Team, offsetX: number): CFrame
 	local sign = if team == "A" then -1 else 1
-	local position = Vector3.new(0, map.cameraHeight, sign * map.cameraBack)
-	local lookAt = Vector3.new(0, 0, sign * map.cameraLookOwnZ)
+	local position = Vector3.new(offsetX, map.cameraHeight, sign * map.cameraBack)
+	local lookAt = Vector3.new(offsetX, 0, sign * map.cameraLookOwnZ)
 	return CFrame.lookAt(position, lookAt)
 end
 

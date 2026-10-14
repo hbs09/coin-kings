@@ -43,6 +43,8 @@ local movingUnitId: number? = nil
 
 -- Ecra -> arena ---------------------------------------------------------------
 
+-- Devolve o ponto em coordenadas LOCAIS a arena (ja sem o offset do slot), que
+-- sao as mesmas que o servidor valida.
 local function screenToArena(screenPosition: Vector3): Vector2?
 	local camera = workspace.CurrentCamera
 	if not camera then
@@ -63,7 +65,7 @@ local function screenToArena(screenPosition: Vector3): Vector2?
 	end
 
 	local point = ray.Origin + ray.Direction * distance
-	return Vector2.new(point.X, point.Z)
+	return Vector2.new(point.X - State.arenaOffsetX, point.Z)
 end
 
 local function unitAt(position: Vector2): Types.ArmyEntry?
@@ -111,7 +113,7 @@ local function redrawArmy()
 				visual = UnitVisual.create(def, teamColor(), folder, { label = true })
 				visuals[entry.id] = visual
 			end
-			UnitVisual.setPosition(visual, entry.x, entry.z)
+			UnitVisual.setPosition(visual, entry.x + State.arenaOffsetX, entry.z)
 			visual.part.Transparency = if movingUnitId == entry.id then 0.6 else 0
 		end
 	end
@@ -187,7 +189,7 @@ local function updateGhost(screenPosition: Vector3)
 		return
 	end
 
-	UnitVisual.setPosition(visual, point.X, point.Y)
+	UnitVisual.setPosition(visual, point.X + State.arenaOffsetX, point.Y)
 	UnitVisual.setGhostValid(visual, Placement.isValid(team, State.army, point.X, point.Y, def, movingUnitId))
 end
 

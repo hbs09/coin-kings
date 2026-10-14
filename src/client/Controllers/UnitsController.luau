@@ -68,7 +68,7 @@ local function onRoster(payload: Types.RosterPayload)
 				targetZ = entry.z,
 				yaw = yaw,
 			}
-			UnitVisual.setPosition(visual, entry.x, entry.z, yaw)
+			UnitVisual.setPosition(visual, entry.x + State.arenaOffsetX, entry.z, yaw)
 		end
 	end
 end
@@ -113,7 +113,7 @@ local function onRender(deltaTime: number)
 			if dx * dx + dz * dz > 0.01 then
 				entry.yaw = math.atan2(-dx, -dz)
 			end
-			UnitVisual.setPosition(entry.visual, entry.currentX, entry.currentZ, entry.yaw)
+			UnitVisual.setPosition(entry.visual, entry.currentX + State.arenaOffsetX, entry.currentZ, entry.yaw)
 		end
 	end
 end

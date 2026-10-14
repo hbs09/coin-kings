@@ -48,6 +48,9 @@ export type MatchStatePayload = {
 	endsAt: number,
 	duration: number,
 	team: Team?, -- a equipa de quem recebe; nil quando é espectador/lobby
+	-- Deslocamento em X da arena desta partida. As posições das unidades viajam
+	-- em coordenadas locais à arena; o cliente soma isto para desenhar.
+	arenaOffsetX: number,
 	selfReady: boolean,
 	opponentReady: boolean,
 	opponentName: string?,

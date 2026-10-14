@@ -5,6 +5,14 @@
 
 	Queue -> Prep -> Reveal -> Battle -> RoundEnd -> ... -> MatchEnd
 
+	O servidor corre varias partidas ao mesmo tempo, uma por slot/arena
+	(Config/Match.maxMatchesPerServer). Cada Match tem o seu estado, a sua
+	Session de combate e a sua thread; nada e global.
+
+	Coordenadas: tudo o que viaja entre cliente e servidor e **local a arena**.
+	O deslocamento do slot vai no MatchState (arenaOffsetX) e o cliente soma-o
+	so para desenhar. Assim as regras de Config/Maps valem para todas as arenas.
+
 	Regras importantes desta fase:
 	- Durante a Prep cada jogador so recebe o SEU exercito (ArmyUpdate). O
 	  exercito do adversario e revelado apenas na fase Reveal, pelo Roster.
@@ -35,18 +43,26 @@ type Side = {
 	lostLastRound: boolean,
 }
 
+type Match = {
+	slot: number,
+	offsetX: number,
+	sides: { [Player]: Side },
+	phase: Types.MatchPhase,
+	phaseEndsAt: number,
+	phaseDuration: number,
+	round: number,
+	scoreA: number,
+	scoreB: number,
+	abortRequested: boolean,
+	session: CombatService.Session,
+}
+
 local MatchService = {}
 
-local sides: { [Player]: Side } = {}
-local phase: Types.MatchPhase = "Lobby"
-local phaseEndsAt = 0
-local phaseDuration = 0
-local round = 0
-local scoreA = 0
-local scoreB = 0
-local active = false
-local abortRequested = false
+local matches: { [number]: Match } = {} -- indexadas pelo slot
+local matchByPlayer: { [Player]: Match } = {}
 local nextUnitId = 0
+local endedListeners: { (players: { Player }) -> () } = {}
 
 local map = Maps.default
 
@@ -61,8 +77,8 @@ local function notify(player: Player, key: string, arg: string?)
 	Net.fireClient("Notice", player, payload)
 end
 
-local function getSideByTeam(team: Types.Team): Side?
-	for _, side in sides do
+local function getSideByTeam(match: Match, team: Types.Team): Side?
+	for _, side in match.sides do
 		if side.team == team then
 			return side
 		end
@@ -70,16 +86,25 @@ local function getSideByTeam(team: Types.Team): Side?
 	return nil
 end
 
-local function getOpponent(side: Side): Side?
-	return getSideByTeam(if side.team == "A" then "B" else "A")
+local function getOpponent(match: Match, side: Side): Side?
+	return getSideByTeam(match, if side.team == "A" then "B" else "A")
 end
 
-local function scoreOf(team: Types.Team): number
-	return if team == "A" then scoreA else scoreB
+local function scoreOf(match: Match, team: Types.Team): number
+	return if team == "A" then match.scoreA else match.scoreB
+end
+
+local function playersOf(match: Match): { Player }
+	local list: { Player } = {}
+	for _, side in match.sides do
+		table.insert(list, side.player)
+	end
+	return list
 end
 
 local function sendArmy(player: Player)
-	local side = sides[player]
+	local match = matchByPlayer[player]
+	local side = if match then match.sides[player] else nil
 	local payload: Types.ArmyPayload = {
 		gold = EconomyService.getGold(player),
 		maxUnits = MatchConfig.maxUnitsPerPlayer,
@@ -88,38 +113,56 @@ local function sendArmy(player: Player)
 	Net.fireClient("ArmyUpdate", player, payload)
 end
 
-local function broadcastState()
-	for _, player in Players:GetPlayers() do
-		local side = sides[player]
-		local opponent: Side? = if side then getOpponent(side) else nil
+-- Estado para quem nao esta em partida nenhuma.
+local function sendLobbyState(player: Player)
+	local payload: Types.MatchStatePayload = {
+		phase = "Lobby",
+		round = 0,
+		maxRounds = MatchConfig.maxRounds,
+		endsAt = now(),
+		duration = 0,
+		team = nil,
+		arenaOffsetX = 0,
+		selfReady = false,
+		opponentReady = false,
+		opponentName = nil,
+		selfScore = 0,
+		opponentScore = 0,
+	}
+	Net.fireClient("MatchState", player, payload)
+end
 
+local function broadcastState(match: Match)
+	for _, side in match.sides do
+		local opponent = getOpponent(match, side)
 		local payload: Types.MatchStatePayload = {
-			phase = phase,
-			round = round,
+			phase = match.phase,
+			round = match.round,
 			maxRounds = MatchConfig.maxRounds,
-			endsAt = phaseEndsAt,
-			duration = phaseDuration,
-			team = if side then side.team else nil,
-			selfReady = if side then side.ready else false,
+			endsAt = match.phaseEndsAt,
+			duration = match.phaseDuration,
+			team = side.team,
+			arenaOffsetX = match.offsetX,
+			selfReady = side.ready,
 			opponentReady = if opponent then opponent.ready else false,
 			opponentName = if opponent then opponent.player.Name else nil,
-			selfScore = if side then scoreOf(side.team) else 0,
-			opponentScore = if opponent then scoreOf(opponent.team) else 0,
+			selfScore = scoreOf(match, side.team),
+			opponentScore = if opponent then scoreOf(match, opponent.team) else 0,
 		}
-		Net.fireClient("MatchState", player, payload)
+		Net.fireClient("MatchState", side.player, payload)
 	end
 end
 
-local function setPhase(nextPhase: Types.MatchPhase, duration: number)
-	phase = nextPhase
-	phaseDuration = duration
-	phaseEndsAt = now() + duration
-	broadcastState()
+local function setPhase(match: Match, nextPhase: Types.MatchPhase, duration: number)
+	match.phase = nextPhase
+	match.phaseDuration = duration
+	match.phaseEndsAt = now() + duration
+	broadcastState(match)
 end
 
-local function bothReady(): boolean
+local function bothReady(match: Match): boolean
 	local count = 0
-	for _, side in sides do
+	for _, side in match.sides do
 		if not side.ready then
 			return false
 		end
@@ -129,12 +172,12 @@ local function bothReady(): boolean
 end
 
 -- Espera o fim da fase. Na Prep, acaba mais cedo se os dois estiverem prontos.
-local function waitPhaseEnd()
-	while now() < phaseEndsAt do
-		if abortRequested then
+local function waitPhaseEnd(match: Match)
+	while now() < match.phaseEndsAt do
+		if match.abortRequested then
 			return
 		end
-		if phase == "Prep" and bothReady() then
+		if match.phase == "Prep" and bothReady(match) then
 			return
 		end
 		task.wait(0.1)
@@ -152,27 +195,30 @@ local function findEntry(side: Side, unitId: number): (number?, Types.ArmyEntry?
 	return nil, nil
 end
 
-local function editableSide(player: Player): Side?
-	local side = sides[player]
-	if not side then
+local function editableSide(player: Player): (Match?, Side?)
+	local match = matchByPlayer[player]
+	if not match then
 		notify(player, "wrong_phase")
-		return nil
+		return nil, nil
 	end
-	if phase ~= "Prep" then
+
+	local side = match.sides[player]
+	if not side or match.phase ~= "Prep" then
 		notify(player, "wrong_phase")
-		return nil
+		return nil, nil
 	end
+
 	if side.ready then
 		-- Mexer no exercito cancela o "pronto" em vez de ser recusado.
 		side.ready = false
-		broadcastState()
+		broadcastState(match)
 	end
-	return side
+	return match, side
 end
 
 local function handlePlace(player: Player, troopId: string, x: number, z: number)
-	local side = editableSide(player)
-	if not side then
+	local match, side = editableSide(player)
+	if not match or not side then
 		return
 	end
 
@@ -213,8 +259,8 @@ local function handlePlace(player: Player, troopId: string, x: number, z: number
 end
 
 local function handleMove(player: Player, unitId: number, x: number, z: number)
-	local side = editableSide(player)
-	if not side then
+	local match, side = editableSide(player)
+	if not match or not side then
 		return
 	end
 
@@ -244,8 +290,8 @@ local function handleMove(player: Player, unitId: number, x: number, z: number)
 end
 
 local function handleSell(player: Player, unitId: number)
-	local side = editableSide(player)
-	if not side then
+	local match, side = editableSide(player)
+	if not match or not side then
 		return
 	end
 
@@ -264,23 +310,30 @@ local function handleSell(player: Player, unitId: number)
 end
 
 local function handleReady(player: Player, ready: boolean)
-	local side = sides[player]
-	if not side or phase ~= "Prep" then
+	local match = matchByPlayer[player]
+	if not match or match.phase ~= "Prep" then
 		return
 	end
+
+	local side = match.sides[player]
+	if not side then
+		return
+	end
+
 	if ready and #side.army == 0 then
 		notify(player, "empty_army")
 		return
 	end
+
 	side.ready = ready
-	broadcastState()
+	broadcastState(match)
 end
 
 -- Ciclo da partida ------------------------------------------------------------
 
-local function collectSpawnEntries(): { Types.SpawnEntry }
+local function collectSpawnEntries(match: Match): { Types.SpawnEntry }
 	local entries: { Types.SpawnEntry } = {}
-	for _, side in sides do
+	for _, side in match.sides do
 		for _, unit in side.army do
 			local def = Troops.get(unit.troopId)
 			if def then
@@ -298,146 +351,201 @@ local function collectSpawnEntries(): { Types.SpawnEntry }
 	return entries
 end
 
-local function resetToLobby()
-	CombatService.clear()
-	for _, side in sides do
-		EconomyService.clear(side.player)
+local function closeMatch(match: Match)
+	CombatService.clear(match.session)
+
+	local released = playersOf(match)
+	for _, player in released do
+		EconomyService.clear(player)
+		matchByPlayer[player] = nil
+		if player.Parent then
+			sendLobbyState(player)
+			sendArmy(player)
+		end
 	end
-	sides = {}
-	active = false
-	round = 0
-	scoreA = 0
-	scoreB = 0
-	setPhase("Lobby", MatchConfig.lobbyCountdown)
+
+	matches[match.slot] = nil
+
+	-- O matchmaking volta a por estes jogadores na fila.
+	for _, listener in endedListeners do
+		listener(released)
+	end
 end
 
-local function startRound(roundNumber: number)
-	round = roundNumber
-	for _, side in sides do
+local function startRound(match: Match, roundNumber: number)
+	match.round = roundNumber
+	for _, side in match.sides do
 		side.army = {}
 		side.ready = false
 		local bonus = if side.lostLastRound then MatchConfig.loserBonus else 0
 		EconomyService.setGold(side.player, MatchConfig.startingGold + bonus)
 	end
 
-	setPhase("Prep", MatchConfig.prepDuration)
-	for _, side in sides do
+	setPhase(match, "Prep", MatchConfig.prepDuration)
+	for _, side in match.sides do
 		sendArmy(side.player)
 	end
-	waitPhaseEnd()
+	waitPhaseEnd(match)
 end
 
-local function runMatch()
-	active = true
-	abortRequested = false
-	round = 0
-	scoreA = 0
-	scoreB = 0
-
-	for _, side in sides do
+local function runMatch(match: Match)
+	for _, side in match.sides do
 		side.lostLastRound = false
 	end
 
 	local roundNumber = 1
-	while not abortRequested do
-		startRound(roundNumber)
-		if abortRequested then
+	while not match.abortRequested do
+		startRound(match, roundNumber)
+		if match.abortRequested then
 			break
 		end
 
 		-- Reveal: os exercitos aparecem aos dois jogadores.
-		setPhase("Reveal", MatchConfig.revealDuration)
-		CombatService.spawnRound(collectSpawnEntries())
-		waitPhaseEnd()
-		if abortRequested then
+		setPhase(match, "Reveal", MatchConfig.revealDuration)
+		CombatService.spawnRound(match.session, collectSpawnEntries(match))
+		waitPhaseEnd(match)
+		if match.abortRequested then
 			break
 		end
 
 		-- Battle
-		setPhase("Battle", MatchConfig.battleDuration)
-		local result = CombatService.runBattle(MatchConfig.battleDuration)
-		if abortRequested or result.reason == "aborted" then
+		setPhase(match, "Battle", MatchConfig.battleDuration)
+		local result = CombatService.runBattle(match.session, MatchConfig.battleDuration)
+		if match.abortRequested or result.reason == "aborted" then
 			break
 		end
 
 		if result.winner == "A" then
-			scoreA += 1
+			match.scoreA += 1
 		elseif result.winner == "B" then
-			scoreB += 1
+			match.scoreB += 1
 		end
 
-		for _, side in sides do
+		for _, side in match.sides do
 			side.lostLastRound = result.winner ~= nil and result.winner ~= side.team
 		end
 
 		result.round = roundNumber
-		result.scoreA = scoreA
-		result.scoreB = scoreB
-		Net.fireAllClients("RoundResult", result)
+		result.scoreA = match.scoreA
+		result.scoreB = match.scoreB
+		for _, side in match.sides do
+			Net.fireClient("RoundResult", side.player, result)
+		end
 
-		setPhase("RoundEnd", MatchConfig.roundEndDuration)
-		waitPhaseEnd()
-		CombatService.clear()
+		setPhase(match, "RoundEnd", MatchConfig.roundEndDuration)
+		waitPhaseEnd(match)
+		CombatService.clear(match.session)
 
-		local decided = scoreA >= MatchConfig.roundsToWin or scoreB >= MatchConfig.roundsToWin
-		if decided or roundNumber >= MatchConfig.maxRounds or abortRequested then
+		local decided = match.scoreA >= MatchConfig.roundsToWin or match.scoreB >= MatchConfig.roundsToWin
+		if decided or roundNumber >= MatchConfig.maxRounds or match.abortRequested then
 			break
 		end
 		roundNumber += 1
 	end
 
 	local winner: Types.Team? = nil
-	if scoreA > scoreB then
+	if match.scoreA > match.scoreB then
 		winner = "A"
-	elseif scoreB > scoreA then
+	elseif match.scoreB > match.scoreA then
 		winner = "B"
 	end
 
-	local payload: Types.MatchResultPayload = { winner = winner, scoreA = scoreA, scoreB = scoreB }
-	Net.fireAllClients("MatchResult", payload)
+	local payload: Types.MatchResultPayload = { winner = winner, scoreA = match.scoreA, scoreB = match.scoreB }
+	for _, side in match.sides do
+		Net.fireClient("MatchResult", side.player, payload)
+	end
 
-	setPhase("MatchEnd", MatchConfig.matchEndDuration)
-	waitPhaseEnd()
-	resetToLobby()
+	setPhase(match, "MatchEnd", MatchConfig.matchEndDuration)
+	waitPhaseEnd(match)
+	closeMatch(match)
 end
 
 -- API -------------------------------------------------------------------------
 
-function MatchService.isActive(): boolean
-	return active
+function MatchService.activeCount(): number
+	local count = 0
+	for _ in matches do
+		count += 1
+	end
+	return count
 end
 
-function MatchService.beginMatch(playerA: Player, playerB: Player)
-	if active then
-		return
+function MatchService.freeSlot(): number?
+	for slot = 0, MatchConfig.maxMatchesPerServer - 1 do
+		if not matches[slot] then
+			return slot
+		end
+	end
+	return nil
+end
+
+function MatchService.isInMatch(player: Player): boolean
+	return matchByPlayer[player] ~= nil
+end
+
+-- Avisado quando uma partida acaba (ou e abortada), com os jogadores libertados.
+function MatchService.onMatchEnded(listener: (players: { Player }) -> ())
+	table.insert(endedListeners, listener)
+end
+
+function MatchService.beginMatch(playerA: Player, playerB: Player): boolean
+	if matchByPlayer[playerA] or matchByPlayer[playerB] then
+		return false
 	end
 
-	sides = {}
-	sides[playerA] = { player = playerA, team = "A", army = {}, ready = false, lostLastRound = false }
-	sides[playerB] = { player = playerB, team = "B", army = {}, ready = false, lostLastRound = false }
+	local slot = MatchService.freeSlot()
+	if not slot then
+		return false
+	end
+
+	local match: Match = {
+		slot = slot,
+		offsetX = Maps.arenaOffset(map, slot),
+		sides = {},
+		phase = "Lobby",
+		phaseEndsAt = now(),
+		phaseDuration = 0,
+		round = 0,
+		scoreA = 0,
+		scoreB = 0,
+		abortRequested = false,
+		session = CombatService.createSession({ playerA, playerB }),
+	}
+
+	match.sides[playerA] = { player = playerA, team = "A", army = {}, ready = false, lostLastRound = false }
+	match.sides[playerB] = { player = playerB, team = "B", army = {}, ready = false, lostLastRound = false }
+
+	matches[slot] = match
+	matchByPlayer[playerA] = match
+	matchByPlayer[playerB] = match
 
 	task.spawn(function()
-		local ok, err = pcall(runMatch)
+		local ok, err = pcall(runMatch, match)
 		if not ok then
-			warn(`MatchService: a partida falhou: {err}`)
-			resetToLobby()
+			warn(`MatchService: a partida no slot {slot} falhou: {err}`)
+			closeMatch(match)
 		end
 	end)
+
+	return true
 end
 
 function MatchService.handlePlayerLeaving(player: Player)
-	if not sides[player] then
+	local match = matchByPlayer[player]
+	if not match then
 		return
 	end
 
-	sides[player] = nil
-	if not active then
-		return
-	end
+	match.sides[player] = nil
+	matchByPlayer[player] = nil
+	EconomyService.clear(player)
 
-	abortRequested = true
-	CombatService.stop()
-	for _, side in sides do
+	match.abortRequested = true
+	CombatService.stop(match.session)
+	-- Deixa de replicar para quem saiu.
+	CombatService.setRecipients(match.session, playersOf(match))
+
+	for _, side in match.sides do
 		notify(side.player, "opponent_left")
 	end
 end
@@ -460,18 +568,21 @@ function MatchService.init()
 	end)
 
 	Net.onServerEvent("RequestState", function(player: Player)
-		broadcastState()
+		local match = matchByPlayer[player]
+		if match then
+			broadcastState(match)
+		else
+			sendLobbyState(player)
+		end
 		sendArmy(player)
 	end)
 end
 
 function MatchService.start()
-	setPhase("Lobby", MatchConfig.lobbyCountdown)
-
-	-- Quem entra a meio de uma partida recebe o estado atual (como espectador).
-	Players.PlayerAdded:Connect(function()
-		broadcastState()
-	end)
+	Players.PlayerAdded:Connect(sendLobbyState)
+	for _, player in Players:GetPlayers() do
+		sendLobbyState(player)
+	end
 end
 
 return MatchService

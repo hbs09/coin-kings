@@ -80,7 +80,7 @@ meteor 150 (dano em área pequena) · divine_shield 120 (5 s de invulnerabilidad
 - Máx. **40 unidades por jogador**. O objetivo são 60 fps em telemóvel.
 - Simulação no servidor em tick fixo (10 Hz). O cliente interpola as posições e só replica o estado mínimo (id, posição, hp, estado).
 - Evitar um `Humanoid` por unidade se pesar: preferir modelos ancorados com movimento por CFrame. Pathfinding simples num mapa plano.
-- **Vários jogos em paralelo por servidor** (alvo: 12 jogadores, até 6 partidas). Com servidores de 2, 40 jogadores online espalham-se por 20 servidores isolados e cada fila só vê 2 pessoas — é a morte do matchmaking. O `MatchService` tem de deixar de ter estado global (uma partida por servidor, como está no protótipo) e passar a gerir uma lista de partidas; cada arena fica numa zona própria do mapa. **Fazer isto antes do Elo**, que assenta por cima.
+- **Vários jogos em paralelo por servidor — feito.** 6 partidas por servidor (`Config/Match.maxMatchesPerServer`), uma arena por slot, afastadas 500 studs em X. Cada partida tem o seu estado e a sua `CombatService.Session`; a replicação é só para os dois jogadores dela. **As coordenadas que viajam na rede são locais à arena**: o `arenaOffsetX` vai no `MatchState` e o cliente soma-o apenas para desenhar, por isso as regras de `Config/Maps` valem para todas as arenas. O lugar no Studio precisa de **Max Players = 12** (Game Settings).
 
 ## Ranking (RankService)
 - Elo escondido (inicial 1000, K = 32, K = 48 nas primeiras 20 partidas).
@@ -114,7 +114,7 @@ Battle Pass, skins de tropas (a mesma hitbox), efeitos de feitiço, emotes, band
 
 ## Roadmap — trabalhar fase a fase e não avançar sem cumprir o critério
 1. **Protótipo — FEITO (14/10/2026).** Mapa plano com duas metades; soldier, archer e knight; compra validada no servidor; posicionamento por arrastar; batalha até um lado morrer; 1 ronda. *Critério cumprido:* 2 jogadores locais jogaram uma partida completa sem erros na Output.
-2. **MVP:** melhor de 3 (só mudar `Config/Match`), as 8 tropas (falta a IA do curandeiro), 2 feitiços, **vários jogos por servidor**, DataService, campanha PvE com os primeiros capítulos, Elo e leaderboard, UI para telemóvel. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
+2. **MVP:** ~~vários jogos por servidor~~ (feito), melhor de 3 (só mudar `Config/Match`), as 8 tropas (falta a IA do curandeiro), 2 feitiços, DataService, campanha PvE com os primeiros capítulos, Elo e leaderboard, UI para telemóvel. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
 3. **Lançamento:** 4 feitiços, mapa com rio e ponte, modo casual, missões, nível de conta, mais capítulos de campanha, analytics completo (`AnalyticsService`: funil do tutorial, taxa de vitória por tropa, revanche).
 4. **Temporada 1:** Battle Pass, escalões e temporadas, amigos, espectador, replays, eventos.
 

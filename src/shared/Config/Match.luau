@@ -26,6 +26,11 @@ Match.roundEndDuration = 5
 Match.matchEndDuration = 8
 
 -- Limites técnicos
+-- Partidas em paralelo no mesmo servidor. Cada uma ocupa uma arena (um "slot").
+-- Com servidores de 2 jogadores o matchmaking nao sobrevive: 40 jogadores online
+-- ficariam espalhados por 20 servidores isolados, cada fila a ver 2 pessoas.
+-- O lugar no Studio tem de ter maxPlayers = maxMatchesPerServer * 2.
+Match.maxMatchesPerServer = 6
 Match.maxUnitsPerPlayer = 40
 Match.tickRate = 10 -- Hz da simulação no servidor
 Match.minUnitSpacing = 0.5 -- folga mínima entre as bordas de duas unidades, em studs

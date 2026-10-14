@@ -23,12 +23,14 @@ local CameraController = {}
 
 local map = Maps.default
 local appliedTeam: Types.Team? = nil
-local target = Maps.cameraCFrame(map, "A")
+local appliedOffsetX = 0
+local target = Maps.cameraCFrame(map, "A", 0)
 
-local function apply(team: Types.Team?)
+local function apply(team: Types.Team?, offsetX: number)
 	appliedTeam = team
-	-- Sem equipa (ainda no lobby) mostra-se o campo do lado da equipa A.
-	target = Maps.cameraCFrame(map, team or "A")
+	appliedOffsetX = offsetX
+	-- Sem equipa (ainda no lobby) mostra-se a arena 0 do lado da equipa A.
+	target = Maps.cameraCFrame(map, team or "A", offsetX)
 
 	local camera = workspace.CurrentCamera
 	if camera then
@@ -50,14 +52,14 @@ local function enforce()
 end
 
 function CameraController.init()
-	apply(nil)
+	apply(nil, 0)
 	enforce()
 end
 
 function CameraController.start()
 	State.onMatchState(function(payload: Types.MatchStatePayload)
-		if payload.team ~= appliedTeam then
-			apply(payload.team)
+		if payload.team ~= appliedTeam or payload.arenaOffsetX ~= appliedOffsetX then
+			apply(payload.team, payload.arenaOffsetX)
 		end
 	end)
 

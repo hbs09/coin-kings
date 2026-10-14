@@ -22,6 +22,9 @@ local State = {
 	endsAt = 0,
 	duration = 0,
 	team = nil :: Types.Team?,
+	-- Deslocamento em X da arena desta partida (as posicoes chegam em
+	-- coordenadas locais; somar isto para desenhar no mundo).
+	arenaOffsetX = 0,
 	selfReady = false,
 	opponentReady = false,
 	opponentName = nil :: string?,
@@ -108,6 +111,7 @@ function State.init()
 		State.endsAt = payload.endsAt
 		State.duration = payload.duration
 		State.team = payload.team
+		State.arenaOffsetX = payload.arenaOffsetX
 		State.selfReady = payload.selfReady
 		State.opponentReady = payload.opponentReady
 		State.opponentName = payload.opponentName
