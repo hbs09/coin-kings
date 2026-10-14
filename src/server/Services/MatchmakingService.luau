@@ -20,6 +20,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Net = require(ReplicatedStorage.Shared.Net)
 local MatchConfig = require(ReplicatedStorage.Shared.Config.Match)
 
+local AnalyticsService = require(script.Parent.AnalyticsService)
 local DataService = require(script.Parent.DataService)
 local MatchService = require(script.Parent.MatchService)
 local RankService = require(script.Parent.RankService)
@@ -109,6 +110,15 @@ function MatchmakingService.start()
 				if not (playerA and playerB) then
 					break
 				end
+				local waited = os.clock()
+				for _, player in { playerA, playerB } do
+					local since = waitingSince[player]
+					if since then
+						AnalyticsService.logQueueWait(player, waited - since, "pvp")
+					end
+					waitingSince[player] = nil
+				end
+
 				if not MatchService.beginMatch(playerA, playerB) then
 					-- Nao arrancou: o refreshQueue do proximo ciclo repoe-os.
 					break
@@ -124,6 +134,7 @@ function MatchmakingService.start()
 				local since = waitingSince[player]
 				if since and now - since >= MatchConfig.queueBotAfter then
 					if MatchService.beginTraining(player) then
+						AnalyticsService.logQueueWait(player, now - since, "bot")
 						table.remove(queue, index)
 						waitingSince[player] = nil
 					end

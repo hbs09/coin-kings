@@ -95,7 +95,9 @@ Pela ordem definida no [CLAUDE.md](CLAUDE.md):
    contra o bot, sem efeito nos troféus.
 6. ~~2 feitiços~~ — **feito**: meteoro e gelo, comprados na preparação e
    lançados à mão durante a batalha.
-7. **Leaderboard** e analytics mínimo.
+7. ~~Analytics mínimo~~ — **feito**: partidas por sessão, tempo de fila e
+   funil do tutorial, no painel do criador.
+8. **Leaderboard** e afinação da UI para telemóvel.
 
 Critério para fechar a fase: alpha com **D1 ≥ 12%** e **≥ 2 partidas por
 sessão**.

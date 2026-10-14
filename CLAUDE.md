@@ -147,11 +147,11 @@ Battle Pass, skins de tropas (a mesma hitbox), efeitos de feitiço, emotes, band
 
 ## Roadmap — trabalhar fase a fase e não avançar sem cumprir o critério
 1. **Protótipo — FEITO (14/10/2026).** Mapa plano com duas metades; soldier, archer e knight; compra validada no servidor; posicionamento por arrastar; batalha até um lado morrer; 1 ronda. *Critério cumprido:* 2 jogadores locais jogaram uma partida completa sem erros na Output.
-2. **MVP:** ~~vários jogos por servidor~~, ~~melhor de 3~~, ~~as 8 tropas~~, ~~DataService~~, ~~tutorial~~, ~~arenas e troféus~~, ~~bot de fila~~, ~~2 feitiços~~ (feitos); faltam leaderboard, analytics mínimo, UI para telemóvel. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
+2. **MVP:** ~~vários jogos por servidor~~, ~~melhor de 3~~, ~~as 8 tropas~~, ~~DataService~~, ~~tutorial~~, ~~arenas e troféus~~, ~~bot de fila~~, ~~2 feitiços~~, ~~analytics mínimo~~ (feitos); falta o leaderboard e afinar a UI para telemóvel. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
 3. **Lançamento:** 4 feitiços, mapa com rio e ponte, modo casual, missões, nível de conta, mais capítulos de campanha, analytics completo (`AnalyticsService`: funil do tutorial, taxa de vitória por tropa, revanche).
 4. **Temporada 1:** Battle Pass, escalões e temporadas, amigos, espectador, replays, eventos.
 
-**Analytics mínimo entra na fase 2, não na 3:** sem medir D1, partidas por sessão e tempo de fila, não há como saber se o critério do MVP passou.
+**Analytics mínimo — feito** (`Config/Analytics`, `AnalyticsService`). Mede partidas por sessão, tempo de fila (separando PvP de bot), o funil do tutorial em 4 passos, e a duração e resultado das partidas. O D1 e a duração de sessão vêm do painel do criador. Usa o AnalyticsService do Roblox: tudo em pcall (telemetria nunca parte o jogo) e o Studio não conta para os dados reais.
 
 ## Atalhos de teste (Config/Admin, AdminService)
 Painel de admin com **modo sandbox** (contra o bot, uma ronda, todas as tropas e ouro à vontade), velocidade de simulação (x1/x2/x5), saltar fase, +ouro, ±troféus e repor perfil. Serve para testar em minutos o que de outra forma levava horas. Os botões mudam com o sítio: no lobby os de perfil, na partida os de combate.

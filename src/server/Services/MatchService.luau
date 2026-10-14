@@ -43,11 +43,13 @@ local AdminConfig = require(Shared.Config.Admin)
 local Maps = require(Shared.Config.Maps)
 local Troops = require(Shared.Config.Troops)
 local Spells = require(Shared.Config.Spells)
+local AnalyticsConfig = require(Shared.Config.Analytics)
 local Placement = require(Shared.Util.Placement)
 
 local BotService = require(script.Parent.BotService)
 local MapService = require(script.Parent.MapService)
 local RankService = require(script.Parent.RankService)
+local AnalyticsService = require(script.Parent.AnalyticsService)
 local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
 local CombatService = require(script.Parent.CombatService)
@@ -80,6 +82,7 @@ type Match = {
 	scoreA: number,
 	scoreB: number,
 	abortRequested: boolean,
+	startedAt: number,
 	session: CombatService.Session,
 }
 
@@ -326,6 +329,9 @@ local function handlePlace(player: Player, troopId: string, x: number, z: number
 	end
 
 	table.insert(side.army, { id = allocateUnitId(), troopId = troopId, x = x, z = z })
+	if match.mode == "tutorial" and #side.army == 1 then
+		AnalyticsService.logTutorialStep(player, AnalyticsConfig.tutorialFunnel.firstUnit)
+	end
 	sendArmy(player)
 end
 
@@ -598,6 +604,7 @@ local function awardTutorial(match: Match, winner: Types.Team?)
 			end)
 			if firstTime then
 				notify(player, "tutorial_complete", tostring(Tutorial.rewardCoins))
+				AnalyticsService.logTutorialStep(player, AnalyticsConfig.tutorialFunnel.finished)
 			end
 			sendProfile(player)
 		end
@@ -626,6 +633,11 @@ local function runMatch(match: Match)
 
 		-- Battle
 		setPhase(match, "Battle", MatchConfig.battleDuration)
+		if match.mode == "tutorial" and roundNumber == 1 then
+			for _, player in playersOf(match) do
+				AnalyticsService.logTutorialStep(player, AnalyticsConfig.tutorialFunnel.battle)
+			end
+		end
 		local result = CombatService.runBattle(match.session, MatchConfig.battleDuration)
 		if match.abortRequested or result.reason == "aborted" then
 			break
@@ -728,6 +740,20 @@ local function runMatch(match: Match)
 	local endDuration = if match.mode == "tutorial"
 		then MatchConfig.tutorialResultTimeout
 		else MatchConfig.matchEndDuration
+	-- Quanto durou de facto, que e o que diz se o ritmo convida a jogar outra.
+	local duration = now() - match.startedAt
+	for _, side in match.sides do
+		local player = side.player
+		if player then
+			local result = if match.abortRequested
+				then "aborted"
+				elseif winner == nil then "draw"
+				elseif winner == side.team then "win"
+				else "loss"
+			AnalyticsService.logMatchEnd(player, match.mode, result, duration)
+		end
+	end
+
 	setPhase(match, "MatchEnd", endDuration)
 	waitPhaseEnd(match)
 	closeMatch(match)
@@ -749,6 +775,15 @@ local function spawnMatch(match: Match)
 		end
 	end
 	MapService.applyTheme(match.slot, RankConfig.arenaFor(lowest or 0))
+
+	for _, player in playersOf(match) do
+		AnalyticsService.logMatchStart(player, match.mode)
+	end
+	if match.mode == "tutorial" then
+		for _, player in playersOf(match) do
+			AnalyticsService.logTutorialStep(player, AnalyticsConfig.tutorialFunnel.started)
+		end
+	end
 
 	task.spawn(function()
 		local ok, err = pcall(runMatch, match)
@@ -778,6 +813,7 @@ local function newMatch(slot: number, mode: Types.MatchMode): Match
 		scoreA = 0,
 		scoreB = 0,
 		abortRequested = false,
+		startedAt = now(),
 		session = CombatService.createSession({}),
 	}
 end

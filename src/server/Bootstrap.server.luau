@@ -16,6 +16,7 @@ Players.CharacterAutoLoads = false
 -- Os remotes tem de existir antes de qualquer servico se ligar a eles.
 Net.init()
 
+local AnalyticsService = require(script.Parent.Services.AnalyticsService)
 local DataService = require(script.Parent.Services.DataService)
 local RankService = require(script.Parent.Services.RankService)
 local AdminService = require(script.Parent.Services.AdminService)
@@ -26,6 +27,7 @@ local CombatService = require(script.Parent.Services.CombatService)
 local MatchService = require(script.Parent.Services.MatchService)
 local MatchmakingService = require(script.Parent.Services.MatchmakingService)
 
+AnalyticsService.init()
 DataService.init()
 RankService.init()
 BotService.init()
@@ -36,6 +38,7 @@ MatchService.init()
 MatchmakingService.init()
 AdminService.init()
 
+AnalyticsService.start()
 DataService.start()
 RankService.start()
 BotService.start()
