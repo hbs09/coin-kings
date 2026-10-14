@@ -8,16 +8,17 @@
 	Quem acaba uma partida continua na fila, de proposito: encadear partidas e
 	a alavanca com mais efeito na retencao. Para parar, carrega em cancelar.
 
-	Empareja por trofeus: a fila e ordenada e sai o par mais proximo. Com
-	poucos jogadores isso quer dizer "quem estiver la", que e o melhor possivel
-	e exatamente por isso que o adversario de treino do BotService (fila acima
-	de 20 s) e a proxima peca importante.
+	Empareja por trofeus: a fila e ordenada e sai o par mais proximo. Quem
+	passar de `Config/Match.queueBotAfter` a espera arranca um treino contra o
+	bot — num 1v1, deixar alguem a olhar para uma fila vazia e a forma mais
+	rapida de o perder. O treino nao mexe em trofeus nem no historico.
 ]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Net = require(ReplicatedStorage.Shared.Net)
+local MatchConfig = require(ReplicatedStorage.Shared.Config.Match)
 
 local DataService = require(script.Parent.DataService)
 local MatchService = require(script.Parent.MatchService)
@@ -27,6 +28,8 @@ local MatchmakingService = {}
 
 local queue: { Player } = {}
 local wantsQueue: { [Player]: boolean } = {}
+-- Desde quando esta cada um a espera (para saber quando chamar o bot).
+local waitingSince: { [Player]: number } = {}
 local POLL_INTERVAL = 1
 
 local function isEligible(player: Player): boolean
@@ -57,12 +60,14 @@ local function refreshQueue()
 		local player = queue[index]
 		if not isEligible(player) then
 			table.remove(queue, index)
+			waitingSince[player] = nil
 		end
 	end
 
 	for _, player in Players:GetPlayers() do
 		if isEligible(player) and not table.find(queue, player) then
 			table.insert(queue, player)
+			waitingSince[player] = os.clock()
 		end
 	end
 end
@@ -72,12 +77,14 @@ function MatchmakingService.init()
 		wantsQueue[player] = queued == true
 		if not wantsQueue[player] then
 			removeFromQueue(player)
+			waitingSince[player] = nil
 		end
 		sendQueueState(player)
 	end)
 
 	Players.PlayerRemoving:Connect(function(player: Player)
 		wantsQueue[player] = nil
+		waitingSince[player] = nil
 		removeFromQueue(player)
 		MatchService.handlePlayerLeaving(player)
 	end)
@@ -105,6 +112,21 @@ function MatchmakingService.start()
 				if not MatchService.beginMatch(playerA, playerB) then
 					-- Nao arrancou: o refreshQueue do proximo ciclo repoe-os.
 					break
+				end
+			end
+
+			-- Quem espera demasiado joga contra o bot em vez de ficar a olhar
+			-- para uma fila vazia. Como continua a querer PvP, volta a fila
+			-- assim que a partida de treino acabar.
+			local now = os.clock()
+			for index = #queue, 1, -1 do
+				local player = queue[index]
+				local since = waitingSince[player]
+				if since and now - since >= MatchConfig.queueBotAfter then
+					if MatchService.beginTraining(player) then
+						table.remove(queue, index)
+						waitingSince[player] = nil
+					end
 				end
 			end
 

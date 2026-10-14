@@ -416,6 +416,9 @@ local function refreshHud()
 
 	if isTutorial then
 		roundLabel.Text = Locale.get("tutorial_name")
+	elseif State.mode == "training" and not inLobby then
+		-- Quem joga contra o bot tem de saber que esta a jogar contra o bot.
+		roundLabel.Text = `{Locale.get("training_name")}  ·  {Locale.get("round", State.round)}`
 	elseif State.team and not inLobby then
 		roundLabel.Text = `{Locale.get("round", State.round)}  {State.selfScore} - {State.opponentScore}`
 	else

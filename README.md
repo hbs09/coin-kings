@@ -91,8 +91,9 @@ Pela ordem definida no [CLAUDE.md](CLAUDE.md):
    Studio Access to API Services**.
 4. ~~Tutorial e arenas~~ — **feito**: tutorial automático na primeira partida e
    7 arenas por troféus, cada uma a desbloquear uma tropa.
-5. **Bot de fila** (adversário de treino acima de 20 s de espera), leaderboard,
-   2 feitiços e analytics mínimo.
+5. ~~Bot de fila~~ — **feito**: passados 20 s de espera arranca um treino
+   contra o bot, sem efeito nos troféus.
+6. **Leaderboard**, 2 feitiços e analytics mínimo.
 
 Critério para fechar a fase: alpha com **D1 ≥ 12%** e **≥ 2 partidas por
 sessão**.

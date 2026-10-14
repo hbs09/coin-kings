@@ -34,7 +34,7 @@ export type ArmyEntry = {
 	z: number,
 }
 
-export type MatchMode = "pvp" | "tutorial"
+export type MatchMode = "pvp" | "tutorial" | "training"
 
 export type MatchPhase = "Lobby" | "Prep" | "Reveal" | "Battle" | "RoundEnd" | "MatchEnd"
 

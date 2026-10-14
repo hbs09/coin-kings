@@ -17,6 +17,10 @@ Match.roundsToWin = 2
 Match.maxRounds = 3
 
 -- Duração das fases, em segundos
+-- Espera maxima na fila antes de arrancar um treino contra o bot. Num 1v1,
+-- deixar alguem a olhar para uma fila vazia e a forma mais rapida de o perder.
+Match.queueBotAfter = 20
+
 Match.lobbyCountdown = 3
 Match.prepDuration = 45
 Match.revealDuration = 3

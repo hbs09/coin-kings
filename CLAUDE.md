@@ -127,7 +127,7 @@ Matemática de Elo com o número à vista (K maior nas 20 primeiras partidas). M
 - A **primeira partida de sempre** começa sozinha quando o perfil carrega: contra um bot fraco, com as tropas da Arena 1, e com orçamento a dar para ganhar com folga. A primeira partida de um jogador decide se há segunda.
 - Dá XP e moedas uma vez; perder não marca como feito. No lobby fica um botão para repetir.
 - Tecnicamente é uma partida normal: um `Side` do `MatchService` pode não ter `player` (é o bot) e os lados são indexados pela equipa. É a única diferença entre os modos.
-- **Sem campanha, o adversário de treino do BotService (fila > 20 s) deixa de ser um extra:** é o que segura o jogo quando houver poucos jogadores online.
+- **Bot de fila — feito.** Passados `Config/Match.queueBotAfter` (20 s) de espera, arranca um treino contra o bot, no mesmo formato do PvP mas sem efeito em troféus nem no histórico. O bot joga com o **mesmo orçamento** e **só com as tropas que o jogador já desbloqueou**; a dificuldade vem da composição sorteada em `Config/Bot`, nunca de lhe dar mais ouro ou mais vida. O HUD identifica a partida como treino — quem joga contra o bot tem de saber.
 
 ## Progressão e retenção
 - Tutorial automático à entrada, contra um bot fraco, só com as tropas da Arena 1.
@@ -141,7 +141,7 @@ Battle Pass, skins de tropas (a mesma hitbox), efeitos de feitiço, emotes, band
 
 ## Roadmap — trabalhar fase a fase e não avançar sem cumprir o critério
 1. **Protótipo — FEITO (14/10/2026).** Mapa plano com duas metades; soldier, archer e knight; compra validada no servidor; posicionamento por arrastar; batalha até um lado morrer; 1 ronda. *Critério cumprido:* 2 jogadores locais jogaram uma partida completa sem erros na Output.
-2. **MVP:** ~~vários jogos por servidor~~, ~~melhor de 3~~, ~~as 8 tropas~~, ~~DataService~~, ~~tutorial~~, ~~arenas e troféus~~ (feitos); faltam 2 feitiços, leaderboard, bot de fila, analytics mínimo, UI para telemóvel. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
+2. **MVP:** ~~vários jogos por servidor~~, ~~melhor de 3~~, ~~as 8 tropas~~, ~~DataService~~, ~~tutorial~~, ~~arenas e troféus~~, ~~bot de fila~~ (feitos); faltam 2 feitiços, leaderboard, analytics mínimo, UI para telemóvel. *Critério:* alpha fechada com D1 ≥ 12% e ≥ 2 partidas por sessão — ver **O travão**.
 3. **Lançamento:** 4 feitiços, mapa com rio e ponte, modo casual, missões, nível de conta, mais capítulos de campanha, analytics completo (`AnalyticsService`: funil do tutorial, taxa de vitória por tropa, revanche).
 4. **Temporada 1:** Battle Pass, escalões e temporadas, amigos, espectador, replays, eventos.
 

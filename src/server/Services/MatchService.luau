@@ -10,6 +10,8 @@
 	- "pvp": dois jogadores, melhor de 3, orcamento de Config/Match.
 	- "tutorial": a primeira partida de quem chega, contra um bot fraco de
 	  Config/Tutorial, uma ronda, so com as tropas da Arena 1.
+	- "training": o mesmo formato do PvP, mas contra o bot, quando a fila
+	  demora demasiado. Nao mexe em trofeus nem no historico.
 
 	Um `Side` pode nao ter `player` (e o bot): e isso que permite partilhar
 	todo o ciclo. Os lados sao indexados pela equipa, nao pelo jogador.
@@ -429,6 +431,16 @@ local function startRound(match: Match, roundNumber: number)
 
 	local isTutorial = match.mode == "tutorial"
 
+	-- O bot joga com as tropas que o jogador tem: perder para um gigante que
+	-- ainda nem se viu nao ensina nada.
+	local humanPool: { Types.TroopId } = MatchConfig.troopPool
+	for _, side in match.sides do
+		local player = side.player
+		if player then
+			humanPool = troopPoolFor(player)
+		end
+	end
+
 	for _, side in match.sides do
 		side.army = {}
 		side.ready = false
@@ -441,6 +453,12 @@ local function startRound(match: Match, roundNumber: number)
 		elseif isTutorial then
 			-- O bot nao compra: o exercito dele vem de Config/Tutorial.
 			side.army = BotService.buildTutorialArmy(allocateUnitId)
+			side.ready = true
+		else
+			-- Treino: mesmo orcamento do jogador, composicao sorteada a cada
+			-- ronda. A dificuldade vem da composicao, nunca de dar mais ouro.
+			local bonus = if side.lostLastRound then MatchConfig.loserBonus else 0
+			side.army = BotService.buildArmy(MatchConfig.startingGold + bonus, humanPool, allocateUnitId)
 			side.ready = true
 		end
 	end
@@ -542,7 +560,7 @@ local function runMatch(match: Match)
 	if not match.abortRequested then
 		if match.mode == "tutorial" then
 			awardTutorial(match, winner)
-		elseif winner then
+		elseif match.mode == "pvp" and winner then
 			-- Historico do PvP. Uma partida abortada nao conta: sem Elo ainda
 			-- nao ha nada a ganhar em premiar ou punir uma desistencia.
 			-- Os trofeus do adversario sao lidos antes de qualquer alteracao,
@@ -699,6 +717,25 @@ function MatchService.beginTutorial(player: Player): boolean
 	end
 
 	local match = newMatch(slot, "tutorial")
+	match.sides.A = newSide(player, "A")
+	match.sides.B = newSide(nil, "B")
+	CombatService.setRecipients(match.session, { player })
+	spawnMatch(match)
+	return true
+end
+
+-- Partida de treino contra o bot, quando a fila do PvP demora demasiado.
+function MatchService.beginTraining(player: Player): boolean
+	if matchByPlayer[player] then
+		return false
+	end
+
+	local slot = MatchService.freeSlot()
+	if not slot then
+		return false
+	end
+
+	local match = newMatch(slot, "training")
 	match.sides.A = newSide(player, "A")
 	match.sides.B = newSide(nil, "B")
 	CombatService.setRecipients(match.session, { player })
