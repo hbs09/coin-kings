@@ -110,6 +110,15 @@ local SPECS: { [string]: Spec } = {
 			return count == 0
 		end,
 	},
+	-- Atalhos de teste. O servidor valida sempre quem manda (Config/Admin):
+	-- um botao escondido no cliente nao e seguranca nenhuma.
+	AdminCommand = {
+		direction = "ToServer",
+		maxPerSecond = 10,
+		validate = function(args, count)
+			return count >= 1 and count <= 2 and isShortString(args[1]) and (count == 1 or isFiniteNumber(args[2]))
+		end,
+	},
 	-- Pedido de sincronizacao: quem entra a meio recebe a fase e o seu exercito.
 	RequestState = {
 		direction = "ToServer",
@@ -128,6 +137,7 @@ local SPECS: { [string]: Spec } = {
 	MatchResult = { direction = "ToClient", maxPerSecond = 0 },
 	Profile = { direction = "ToClient", maxPerSecond = 0 },
 	QueueState = { direction = "ToClient", maxPerSecond = 0 },
+	AdminState = { direction = "ToClient", maxPerSecond = 0 },
 	Notice = { direction = "ToClient", maxPerSecond = 0 },
 }
 

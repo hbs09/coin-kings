@@ -105,6 +105,27 @@ function RankService.applyMatchResult(player: Player, opponentTrophies: number, 
 	return outcome
 end
 
+-- Atalho de teste: soma (ou tira) trofeus e entrega o que a nova arena der.
+function RankService.adminAddTrophies(player: Player, delta: number): boolean
+	local profile = DataService.get(player)
+	if not profile then
+		return false
+	end
+
+	DataService.update(player, function(data: Types.Profile)
+		data.trophies = math.max(0, data.trophies + delta)
+		grantUnlocks(data)
+	end)
+	return true
+end
+
+-- Garante os desbloqueios da arena atual (usado depois de repor um perfil).
+function RankService.ensureUnlocks(player: Player)
+	DataService.update(player, function(data: Types.Profile)
+		grantUnlocks(data)
+	end)
+end
+
 function RankService.init()
 	-- Quem entra recebe já o que os seus troféus dão (e quem é antigo recebe o
 	-- que entretanto tivermos acrescentado às arenas).

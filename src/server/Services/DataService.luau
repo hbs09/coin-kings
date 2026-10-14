@@ -274,6 +274,18 @@ function DataService.update(player: Player, mutate: (profile: Types.Profile) -> 
 	return true
 end
 
+-- Atalho de teste: volta a por o perfil como o de um jogador novo.
+function DataService.resetProfile(player: Player): boolean
+	local entry = entries[player]
+	if not entry then
+		return false
+	end
+	entry.profile = fallbackProfile()
+	entry.profile.lastLogin = os.time()
+	entry.dirty = true
+	return true
+end
+
 -- Carregamento e saida --------------------------------------------------------
 
 local function onPlayerAdded(player: Player)

@@ -743,6 +743,41 @@ function MatchService.beginTraining(player: Player): boolean
 	return true
 end
 
+-- Atalhos de teste (quem pode e decidido no AdminService) --------------------
+
+-- Acaba a fase atual ja, sem esperar pelo cronometro.
+function MatchService.adminSkipPhase(player: Player): boolean
+	local match = matchByPlayer[player]
+	if not match then
+		return false
+	end
+	match.phaseEndsAt = now()
+	broadcastState(match)
+	return true
+end
+
+-- Ouro extra para experimentar composicoes sem esperar pela ronda seguinte.
+function MatchService.adminGrantGold(player: Player, amount: number): boolean
+	if not matchByPlayer[player] then
+		return false
+	end
+	EconomyService.refund(player, amount)
+	sendArmy(player)
+	return true
+end
+
+-- Volta a mandar perfil e estado (usado depois de mexer nos trofeus).
+function MatchService.adminRefresh(player: Player)
+	sendProfile(player)
+	local match = matchByPlayer[player]
+	if match then
+		broadcastState(match)
+	else
+		sendLobbyState(player)
+	end
+	sendArmy(player)
+end
+
 function MatchService.handlePlayerLeaving(player: Player)
 	local match = matchByPlayer[player]
 	if not match then

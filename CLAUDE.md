@@ -147,6 +147,12 @@ Battle Pass, skins de tropas (a mesma hitbox), efeitos de feitiço, emotes, band
 
 **Analytics mínimo entra na fase 2, não na 3:** sem medir D1, partidas por sessão e tempo de fila, não há como saber se o critério do MVP passou.
 
+## Atalhos de teste (Config/Admin, AdminService)
+Painel de admin com velocidade de simulação (x1/x2/x5), saltar fase, +ouro, ±troféus e repor perfil. Serve para testar em minutos o que de outra forma levava horas.
+
+- **Quem pode é decidido no servidor** e cada comando é validado outra vez à chegada. Esconder o botão no cliente não é segurança: sem a verificação do lado do servidor, qualquer jogador podia mandar o mesmo remote e dar-se troféus.
+- Por omissão só funciona no Studio (`allowStudio`). Para testar num servidor a sério, pôr o UserId em `Config/Admin.userIds` — **e tirá-lo antes de abrir ao público**.
+
 ## Definição de pronto (por tarefa)
 - Sem erros nem avisos na Output, com `--!strict` a passar.
 - Testado em Studio com 2 jogadores e no emulador de telemóvel.

@@ -52,6 +52,7 @@ type RoundResultFn = (payload: Types.RoundResultPayload) -> ()
 type MatchResultFn = (payload: Types.MatchResultPayload) -> ()
 type ProfileFn = (payload: Types.ProfilePayload) -> ()
 type QueueFn = () -> ()
+type AdminFn = (enabled: boolean) -> ()
 type NoticeFn = (payload: Types.NoticePayload) -> ()
 
 local matchStateFns: { MatchStateFn } = {}
@@ -62,6 +63,7 @@ local roundResultFns: { RoundResultFn } = {}
 local matchResultFns: { MatchResultFn } = {}
 local profileFns: { ProfileFn } = {}
 local queueFns: { QueueFn } = {}
+local adminFns: { AdminFn } = {}
 local noticeFns: { NoticeFn } = {}
 
 function State.onMatchState(fn: MatchStateFn)
@@ -94,6 +96,10 @@ end
 
 function State.onQueueState(fn: QueueFn)
 	table.insert(queueFns, fn)
+end
+
+function State.onAdminState(fn: AdminFn)
+	table.insert(adminFns, fn)
 end
 
 function State.onNotice(fn: NoticeFn)
@@ -196,6 +202,13 @@ function State.init()
 		State.waiting = tonumber(raw.waiting) or 0
 		for _, fn in queueFns do
 			fn()
+		end
+	end)
+
+	Net.onClientEvent("AdminState", function(raw: any)
+		local isEnabled = raw.enabled == true
+		for _, fn in adminFns do
+			fn(isEnabled)
 		end
 	end)
 

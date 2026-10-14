@@ -57,6 +57,15 @@ export type Session = {
 
 local CombatService = {}
 
+-- Multiplicador da simulacao, para os atalhos de teste. Afeta so o ritmo a que
+-- os ticks sao processados; o passo fixo mantem-se, por isso a batalha corre
+-- igual, apenas mais depressa no relogio de quem ve.
+local speedMultiplier = 1
+
+function CombatService.setSpeed(value: number)
+	speedMultiplier = math.clamp(value, 0.25, 10)
+end
+
 function CombatService.init() end
 function CombatService.start() end
 
@@ -434,7 +443,7 @@ function CombatService.runBattle(session: Session, maxDuration: number): Types.R
 	session.stopRequested = false
 
 	while true do
-		local dt: number = RunService.Heartbeat:Wait()
+		local dt: number = RunService.Heartbeat:Wait() * speedMultiplier
 		accumulator += dt
 		elapsed += dt
 
