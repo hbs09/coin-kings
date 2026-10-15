@@ -179,7 +179,7 @@ Gelo — cristal azul com flocos de neve em volta
 **Ficou bom:** os painéis, os botões e as 10 figuras do Prompt C. Estão em
 `assets/ui/`, já cortadas e com fundo transparente.
 
-**Falhou:** os 11 ícones do Prompt B. Vieram todos em grande plano e cortados —
+**Falhou à primeira:** os 11 ícones do Prompt B (resolvidos pelo Prompt D). Vieram todos em grande plano e cortados —
 pedaços de forma sem se perceber o que são, e três em branco. O padrão é claro:
 **pedir um desenho pequeno num ficheiro só dele faz o modelo encher a tela e
 cortar.** O Prompt C correu bem precisamente por ser o contrário: dez figuras
@@ -233,3 +233,26 @@ O script tira o fundo (só o que estiver ligado à moldura, para não abrir bura
 no branco das figuras), separa por peças ligadas em vez de cortar em grelha — a
 maça do gigante e a chama do meteoro sobrepunham-se em x e um corte a direito
 estragava as duas — e grava cada figura centrada em 512x512.
+
+
+## Resultado do Prompt D — os 12 ícones
+
+Correu bem à primeira: os doze numa folha 4x3, fundo cinzento liso, todos
+inteiros. Estão em `assets/ui/icons/` com 256x256 cada.
+
+```bash
+python -I scripts/cut-sheet.py <folha> assets/ui/icons "coin,trophy,timer,units,ready,sell,surrender,leaderboard,tutorial,play,admin,coinbag" 256
+```
+
+**Confirma-se a regra:** uma folha com muitas figuras pequenas funciona; um
+desenho pequeno sozinho num ficheiro não. Quando faltar um ícone, pedir uma
+folha com ele e mais alguns, nem que seja para deitar fora os outros.
+
+## Inventário
+
+| pasta | ficheiros | tamanho |
+|---|---|---|
+| `assets/ui/troops/` | soldier, spearman, archer, shieldbearer, knight, fire_mage, healer, giant | 512x512 |
+| `assets/ui/spells/` | meteor, freeze | 512x512 |
+| `assets/ui/icons/` | coin, coinbag, trophy, timer, units, ready, sell, surrender, leaderboard, tutorial, play, admin | 256x256 |
+| `assets/ui/pieces/` | button_green, button_grey, button_red, button_round, panel, pill, progress_fill, progress_track, hint_strip, card_frame, badge_star | vários |
