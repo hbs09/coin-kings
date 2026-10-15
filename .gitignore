@@ -30,6 +30,10 @@ desktop.ini
 *.jpg
 *.jpeg
 
+# ...menos a arte do jogo, que faz parte do projeto
+!assets/**/*.png
+!assets/**/*.jpg
+
 # Binarios e instaladores que calhem na pasta do projeto
 *.exe
 *.msi
