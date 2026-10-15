@@ -41,3 +41,6 @@ desktop.ini
 *.7z
 *.rar
 *.dmg
+
+# Chaves de API -- nunca entram no repositorio
+/.secrets/
