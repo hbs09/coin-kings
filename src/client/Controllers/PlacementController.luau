@@ -143,7 +143,7 @@ local function redrawArmy()
 				visuals[entry.id] = visual
 			end
 			UnitVisual.setPosition(visual, entry.x + State.arenaOffsetX, entry.z)
-			visual.part.Transparency = if movingUnitId == entry.id then 0.6 else 0
+			UnitVisual.setTransparency(visual, if movingUnitId == entry.id then 0.6 else 0)
 		end
 	end
 

@@ -31,6 +31,8 @@ type Tracked = {
 	targetX: number,
 	targetZ: number,
 	yaw: number,
+	moving: boolean,
+	attacking: boolean,
 }
 
 local folder: Folder
@@ -67,6 +69,8 @@ local function onRoster(payload: Types.RosterPayload)
 				targetX = entry.x,
 				targetZ = entry.z,
 				yaw = yaw,
+				moving = false,
+				attacking = false,
 			}
 			UnitVisual.setPosition(visual, entry.x + State.arenaOffsetX, entry.z, yaw)
 		end
@@ -86,8 +90,10 @@ local function onSnapshot(payload: Types.SnapshotPayload)
 			entry.targetX = alive[index + 1]
 			entry.targetZ = alive[index + 2]
 			UnitVisual.setHealth(entry.visual, alive[index + 3] / entry.maxHp)
-			-- Bit 1: congelado. Quem esta no gelo mostra-o.
-			UnitVisual.setFrozen(entry.visual, alive[index + 4] % 2 == 1)
+			-- Bits do estado: 1 = congelado, 2 = a atacar.
+			local flags = alive[index + 4]
+			UnitVisual.setFrozen(entry.visual, flags % 2 == 1)
+			entry.attacking = flags >= 2
 		end
 		index += 5
 	end
@@ -108,14 +114,24 @@ local function onRender(deltaTime: number)
 		local dx = entry.targetX - entry.currentX
 		local dz = entry.targetZ - entry.currentZ
 
-		if dx * dx + dz * dz > 1e-6 then
+		local distance = dx * dx + dz * dz
+		entry.moving = distance > 1e-4
+
+		if distance > 1e-6 or entry.attacking then
 			entry.currentX += dx * alpha
 			entry.currentZ += dz * alpha
 			-- Vira-se para onde anda (so quando se mexe o suficiente).
-			if dx * dx + dz * dz > 0.01 then
+			if distance > 0.01 then
 				entry.yaw = math.atan2(-dx, -dz)
 			end
-			UnitVisual.setPosition(entry.visual, entry.currentX + State.arenaOffsetX, entry.currentZ, entry.yaw)
+			UnitVisual.setPosition(
+				entry.visual,
+				entry.currentX + State.arenaOffsetX,
+				entry.currentZ,
+				entry.yaw,
+				entry.moving,
+				entry.attacking
+			)
 		end
 	end
 end

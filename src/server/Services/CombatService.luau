@@ -45,6 +45,8 @@ type Unit = {
 	cooldown: number,
 	-- Segundos que ainda falta estar parado (feitico de congelar).
 	frozenFor: number,
+	-- Atacou no ultimo tick: viaja no snapshot para o cliente animar o golpe.
+	swinging: boolean,
 	alive: boolean,
 }
 
@@ -130,6 +132,7 @@ function CombatService.spawnRound(session: Session, entries: { Types.SpawnEntry 
 				maxHp = def.hp,
 				cooldown = 0,
 				frozenFor = 0,
+				swinging = false,
 				alive = true,
 			}
 			table.insert(session.order, entry.id)
@@ -289,6 +292,7 @@ end
 
 local function attack(session: Session, unit: Unit, target: Unit, dead: { number })
 	unit.cooldown = 1 / unit.def.attackSpeed
+	unit.swinging = true
 
 	local aoeRadius = unit.def.aoeRadius
 	if not aoeRadius then
@@ -384,6 +388,7 @@ local function step(session: Session, dt: number, dead: { number })
 		local unit = session.units[id]
 		if unit and unit.alive then
 			unit.cooldown = math.max(0, unit.cooldown - dt)
+			unit.swinging = false
 
 			if unit.frozenFor > 0 then
 				-- Congelado: nao anda, nao ataca, nao cura. O cooldown corre
@@ -429,8 +434,15 @@ local function broadcastSnapshot(session: Session, dead: { number })
 			alive[cursor + 2] = math.floor(unit.x * 100) / 100
 			alive[cursor + 3] = math.floor(unit.z * 100) / 100
 			alive[cursor + 4] = math.ceil(unit.hp)
-			-- Campo de bits do estado: 1 = congelado.
-			alive[cursor + 5] = if unit.frozenFor > 0 then 1 else 0
+			-- Campo de bits do estado: 1 = congelado, 2 = a atacar.
+			local flags = 0
+			if unit.frozenFor > 0 then
+				flags += 1
+			end
+			if unit.swinging then
+				flags += 2
+			end
+			alive[cursor + 5] = flags
 			cursor += 5
 		end
 	end

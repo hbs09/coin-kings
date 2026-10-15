@@ -28,6 +28,7 @@ local defs: { [TroopId]: TroopDef } = {
 		radius = 1.4,
 		height = 4,
 		color = Color3.fromRGB(176, 182, 196),
+		weapon = "sword",
 	},
 
 	spearman = {
@@ -42,6 +43,7 @@ local defs: { [TroopId]: TroopDef } = {
 		radius = 1.5,
 		height = 4.2,
 		color = Color3.fromRGB(124, 150, 116),
+		weapon = "spear",
 	},
 
 	archer = {
@@ -56,6 +58,7 @@ local defs: { [TroopId]: TroopDef } = {
 		radius = 1.3,
 		height = 3.8,
 		color = Color3.fromRGB(104, 178, 118),
+		weapon = "bow",
 	},
 
 	shieldbearer = {
@@ -70,6 +73,8 @@ local defs: { [TroopId]: TroopDef } = {
 		radius = 1.8,
 		height = 4.2,
 		color = Color3.fromRGB(150, 140, 110),
+		weapon = "sword",
+		shield = true,
 	},
 
 	knight = {
@@ -84,6 +89,8 @@ local defs: { [TroopId]: TroopDef } = {
 		radius = 1.7,
 		height = 5,
 		color = Color3.fromRGB(226, 186, 92),
+		weapon = "sword",
+		shield = true,
 	},
 
 	fire_mage = {
@@ -99,6 +106,7 @@ local defs: { [TroopId]: TroopDef } = {
 		radius = 1.4,
 		height = 4.4,
 		color = Color3.fromRGB(226, 106, 72),
+		weapon = "staff",
 	},
 
 	healer = {
@@ -114,6 +122,7 @@ local defs: { [TroopId]: TroopDef } = {
 		radius = 1.3,
 		height = 4,
 		color = Color3.fromRGB(240, 236, 170),
+		weapon = "staff",
 	},
 
 	giant = {
@@ -129,6 +138,7 @@ local defs: { [TroopId]: TroopDef } = {
 		radius = 3.2,
 		height = 9,
 		color = Color3.fromRGB(150, 110, 150),
+		weapon = "club",
 	},
 }
 

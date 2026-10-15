@@ -24,6 +24,9 @@ export type TroopDef = {
 	radius: number,
 	height: number,
 	color: Color3,
+	-- O que a tropa leva na mão: sword, spear, bow, staff, club ou none.
+	weapon: string?,
+	shield: boolean?,
 }
 
 -- Uma unidade colocada na fase de preparação (estado autoritativo do servidor).
