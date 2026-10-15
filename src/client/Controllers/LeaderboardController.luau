@@ -69,12 +69,17 @@ end
 local function buildRow(parent: Instance, order: number): Row
 	local frame = make("Frame", {
 		Name = `Row{order}`,
-		Size = UDim2.new(1, 0, 0, 26),
-		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 28),
+		-- Linhas alternadas: uma lista de dez nomes todos iguais nao se le.
+		BackgroundColor3 = colors.panelLight,
+		BackgroundTransparency = if order % 2 == 0 then 1 else 0.75,
+		BorderSizePixel = 0,
 		LayoutOrder = order,
 		Visible = false,
+		ZIndex = 5,
 		Parent = parent,
 	}) :: Frame
+	UIUtil.corner(frame, 6)
 
 	local rankLabel = make("TextLabel", {
 		Name = "Rank",
@@ -122,38 +127,31 @@ end
 function LeaderboardController.init()
 	local root = UIController.getRoot()
 
-	openButton = make("TextButton", {
+	openButton = UIUtil.button({
 		Name = "OpenLeaderboard",
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -12, 0, 12),
-		Size = UDim2.new(0, 132, 0, 36),
-		BackgroundColor3 = colors.panelLight,
-		BackgroundTransparency = 0.1,
-		BorderSizePixel = 0,
-		AutoButtonColor = true,
-		Font = UIUtil.fontRegular,
+		Size = UDim2.new(0, 136, 0, 40),
+		Font = UIUtil.font,
 		Text = Locale.get("leaderboard"),
-		TextColor3 = colors.text,
+		TextColor3 = colors.textOnLight,
 		TextSize = 15,
 		Visible = false,
 		Parent = root,
-	}) :: TextButton
-	UIUtil.corner(openButton, 8)
+	}, colors.accent, colors.accentDeep)
 
-	panel = make("Frame", {
+	panel = UIUtil.panel({
 		Name = "Leaderboard",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
 		Size = UDim2.new(1, -40, 0, 380),
 		BackgroundColor3 = colors.panel,
-		BackgroundTransparency = 0.02,
 		BorderSizePixel = 0,
 		Visible = false,
 		-- Por cima do painel do lobby.
 		ZIndex = 5,
 		Parent = root,
-	}) :: Frame
-	UIUtil.corner(panel, 14)
+	}, 18)
 	UIUtil.padding(panel, 16)
 
 	local constraint = Instance.new("UISizeConstraint")
@@ -164,10 +162,10 @@ function LeaderboardController.init()
 		Name = "Title",
 		BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 26),
-		Font = UIUtil.font,
+		Font = UIUtil.fontDisplay,
 		Text = Locale.get("leaderboard"),
 		TextColor3 = colors.accent,
-		TextSize = 20,
+		TextSize = 22,
 		ZIndex = 5,
 		Parent = panel,
 	})
@@ -220,22 +218,18 @@ function LeaderboardController.init()
 		Parent = panel,
 	}) :: TextLabel
 
-	local closeButton = make("TextButton", {
+	local closeButton = UIUtil.button({
 		Name = "Close",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, 0),
-		Size = UDim2.new(1, 0, 0, 36),
-		BackgroundColor3 = colors.panelLight,
-		BorderSizePixel = 0,
-		AutoButtonColor = true,
-		Font = UIUtil.fontRegular,
+		Size = UDim2.new(1, 0, 0, 40),
+		Font = UIUtil.font,
 		Text = Locale.get("leaderboard_close"),
 		TextColor3 = colors.text,
 		TextSize = 15,
 		ZIndex = 5,
 		Parent = panel,
-	}) :: TextButton
-	UIUtil.corner(closeButton, 8)
+	}, colors.panelLight, colors.panel)
 
 	closeButton.MouseButton1Click:Connect(function()
 		open = false

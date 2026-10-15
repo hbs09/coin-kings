@@ -16,6 +16,7 @@ local Locale = require(Shared.Locale)
 local Troops = require(Shared.Config.Troops)
 
 local State = require(script.Parent.Parent.State)
+local UnitVisual = require(script.Parent.Parent.UnitVisual)
 local UIUtil = require(script.Parent.Parent.UIUtil)
 local UIController = require(script.Parent.UIController)
 
@@ -30,6 +31,8 @@ type Card = {
 	button: TextButton,
 	nameLabel: TextLabel,
 	costLabel: TextLabel,
+	costPill: Frame,
+	highlight: UIStroke,
 }
 
 local cards: { Card } = {}
@@ -105,18 +108,14 @@ function ShopController.refresh()
 
 		local affordable = State.gold >= card.def.cost
 		local isSelected = selected == card.troopId
-		card.costLabel.Text = tostring(card.def.cost)
 
-		card.button.BackgroundColor3 = if isSelected
-			then colors.accent
-			elseif affordable then colors.panelLight
-			else Color3.fromRGB(30, 32, 38)
-		card.button.TextColor3 = if isSelected then Color3.fromRGB(28, 24, 12) else colors.text
-		card.nameLabel.TextColor3 = if isSelected then Color3.fromRGB(28, 24, 12) else colors.text
-		card.costLabel.TextColor3 = if isSelected
-			then Color3.fromRGB(28, 24, 12)
-			elseif affordable then colors.accent
-			else colors.textDim
+		-- Escolhido: contorno aceso. Sem ouro: tudo apagado, incluindo a
+		-- pastilha do custo, que e onde o olho vai primeiro.
+		card.highlight.Transparency = if isSelected then 0 else 1
+		card.button.BackgroundTransparency = if affordable then 0 else 0.45
+		card.nameLabel.TextColor3 = if affordable then colors.text else colors.textDim
+		card.costPill.BackgroundColor3 = if affordable then colors.accent else colors.panelLight
+		card.costLabel.TextColor3 = if affordable then colors.textOnLight else colors.textDim
 	end
 
 	-- Se a tropa escolhida deixou de estar disponivel, desmarca-a.
@@ -133,6 +132,40 @@ function ShopController.refresh()
 	end
 end
 
+-- O retrato do cartao e o proprio boneco da tropa, numa ViewportFrame: a arte
+-- do cartao e exatamente o que vai aparecer no campo, sem desenhar nada.
+local function buildPortrait(parent: Instance, def: Types.TroopDef)
+	local viewport = make("ViewportFrame", {
+		Name = "Portrait",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 6),
+		Size = UDim2.new(1, -12, 0, 44),
+		BackgroundColor3 = Color3.fromRGB(18, 20, 28),
+		BackgroundTransparency = 0.25,
+		BorderSizePixel = 0,
+		Ambient = Color3.fromRGB(190, 190, 200),
+		LightColor = Color3.fromRGB(255, 252, 240),
+		LightDirection = Vector3.new(-0.4, -1, -0.6),
+		Parent = parent,
+	}) :: ViewportFrame
+	UIUtil.corner(viewport, 8)
+
+	local camera = Instance.new("Camera")
+	camera.Parent = viewport
+	viewport.CurrentCamera = camera
+
+	local visual = UnitVisual.create(def, Color3.fromRGB(104, 142, 204), viewport, { label = false })
+	visual.model:PivotTo(CFrame.new(0, def.height * 0.52, 0) * CFrame.Angles(0, math.rad(205), 0))
+
+	-- A camara afasta-se conforme a altura da tropa, para o gigante caber e o
+	-- arqueiro nao ficar perdido ao longe.
+	local distance = def.height * 1.45
+	camera.CFrame = CFrame.lookAt(
+		Vector3.new(distance * 0.55, def.height * 0.75, distance),
+		Vector3.new(0, def.height * 0.45, 0)
+	)
+end
+
 local function buildCard(parent: Instance, troopId: Types.TroopId, orderIndex: number)
 	local def = Troops.get(troopId)
 	if not def then
@@ -145,49 +178,53 @@ local function buildCard(parent: Instance, troopId: Types.TroopId, orderIndex: n
 		BackgroundColor3 = colors.panelLight,
 		BorderSizePixel = 0,
 		AutoButtonColor = true,
-		Font = UIUtil.font,
 		Text = "",
-		TextColor3 = colors.text,
 		LayoutOrder = orderIndex,
 		Parent = parent,
 	}) :: TextButton
 	UIUtil.corner(button, 10)
+	UIUtil.gradient(button, colors.panelTop, colors.panel)
 
-	-- Mancha com a cor da tropa, para a reconhecer no campo.
-	local swatch = make("Frame", {
-		Name = "Swatch",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 8),
-		Size = UDim2.new(0, 34, 0, 34),
-		BackgroundColor3 = def.color,
-		BorderSizePixel = 0,
-		Parent = button,
-	}) :: Frame
-	UIUtil.corner(swatch, 17)
+	-- O contorno acende quando o cartao esta escolhido.
+	local highlight = UIUtil.stroke(button, 2.5, colors.accent, 1)
+
+	buildPortrait(button, def)
 
 	local nameLabel = make("TextLabel", {
 		Name = "Name",
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 2, 0, 46),
-		Size = UDim2.new(1, -4, 0, 20),
-		Font = UIUtil.fontRegular,
+		Position = UDim2.new(0, 4, 0, 52),
+		Size = UDim2.new(1, -8, 0, 14),
+		Font = UIUtil.font,
 		Text = Locale.troopName(troopId),
 		TextColor3 = colors.text,
-		TextSize = 14,
-		TextScaled = false,
+		TextSize = 13,
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		Parent = button,
 	}) :: TextLabel
 
-	local costLabel = make("TextLabel", {
+	-- Pastilha do custo: o numero que mais se olha ao comprar.
+	local costPill = make("Frame", {
 		Name = "Cost",
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 0, 0, 66),
-		Size = UDim2.new(1, 0, 0, 22),
-		Font = UIUtil.font,
-		Text = tostring(def.cost),
-		TextColor3 = colors.accent,
-		TextSize = 18,
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -6),
+		Size = UDim2.new(1, -16, 0, 22),
+		BackgroundColor3 = colors.accent,
+		BorderSizePixel = 0,
 		Parent = button,
+	}) :: Frame
+	UIUtil.corner(costPill, 11)
+	UIUtil.gradient(costPill, colors.accent, colors.accentDeep)
+
+	local costLabel = make("TextLabel", {
+		Name = "Value",
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Font = UIUtil.fontDisplay,
+		Text = tostring(def.cost),
+		TextColor3 = colors.textOnLight,
+		TextSize = 15,
+		Parent = costPill,
 	}) :: TextLabel
 
 	-- InputBegan em vez de MouseButton1Click: precisamos do InputObject para
@@ -200,8 +237,6 @@ local function buildCard(parent: Instance, troopId: Types.TroopId, orderIndex: n
 		if not isAvailable(troopId) then
 			return
 		end
-		-- Ja vamos a arrastar outra: este cartao esta so a passar por baixo
-		-- do dedo.
 		if dragInProgress() then
 			return
 		end
@@ -219,6 +254,8 @@ local function buildCard(parent: Instance, troopId: Types.TroopId, orderIndex: n
 		button = button,
 		nameLabel = nameLabel,
 		costLabel = costLabel,
+		costPill = costPill,
+		highlight = highlight,
 	})
 end
 

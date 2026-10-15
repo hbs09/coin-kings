@@ -110,17 +110,15 @@ end
 -- Construcao ------------------------------------------------------------------
 
 local function buildTopBar(root: ScreenGui)
-	local bar = make("Frame", {
+	local bar = UIUtil.panel({
 		Name = "TopBar",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 8),
-		Size = UDim2.new(0, 320, 0, 72),
+		Size = UDim2.new(0, 300, 0, 78),
 		BackgroundColor3 = colors.panel,
-		BackgroundTransparency = 0.15,
 		BorderSizePixel = 0,
 		Parent = root,
-	}) :: Frame
-	UIUtil.corner(bar, 10)
+	}, 12)
 	topBar = bar
 
 	phaseLabel = make("TextLabel", {
@@ -140,10 +138,10 @@ local function buildTopBar(root: ScreenGui)
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 0, 0, 24),
 		Size = UDim2.new(1, 0, 0, 34),
-		Font = UIUtil.font,
+		Font = UIUtil.fontDisplay,
 		Text = "0:00",
 		TextColor3 = colors.text,
-		TextSize = 30,
+		TextSize = 34,
 		Parent = bar,
 	}) :: TextLabel
 
@@ -163,28 +161,26 @@ end
 local function buildResourceBar(root: ScreenGui)
 	-- Em cima a esquerda fica por baixo da barra do Roblox (menu e chat), por
 	-- isso o ouro vive ao pe da loja, que e para onde se olha ao comprar.
-	local bar = make("Frame", {
+	local bar = UIUtil.panel({
 		Name = "Resources",
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 12, 1, -150),
-		Size = UDim2.new(0, 190, 0, 56),
+		Size = UDim2.new(0, 196, 0, 58),
 		BackgroundColor3 = colors.panel,
-		BackgroundTransparency = 0.15,
 		BorderSizePixel = 0,
 		Parent = root,
-	}) :: Frame
-	UIUtil.corner(bar, 10)
-	UIUtil.padding(bar, 8)
+	}, 12)
+	UIUtil.padding(bar, 9)
 	resourceBar = bar
 
 	goldLabel = make("TextLabel", {
 		Name = "Gold",
 		BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 26),
-		Font = UIUtil.font,
+		Font = UIUtil.fontDisplay,
 		Text = "",
 		TextColor3 = colors.accent,
-		TextSize = 24,
+		TextSize = 26,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = bar,
 	}) :: TextLabel
@@ -215,17 +211,15 @@ local function buildBottom(root: ScreenGui)
 
 	-- Ocupa a largura toda menos a coluna dos botoes, a direita. Os cartoes
 	-- deslizam na horizontal quando nao cabem (ShopController).
-	shopContainer = make("Frame", {
+	shopContainer = UIUtil.panel({
 		Name = "Shop",
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 0, 1, 0),
 		Size = UDim2.new(1, -144, 0, 112),
 		BackgroundColor3 = colors.panel,
-		BackgroundTransparency = 0.1,
 		BorderSizePixel = 0,
 		Parent = bottom,
-	}) :: Frame
-	UIUtil.corner(shopContainer, 12)
+	}, 14)
 	UIUtil.padding(shopContainer, 8)
 
 	local actions = make("Frame", {
@@ -243,35 +237,27 @@ local function buildBottom(root: ScreenGui)
 	layout.Padding = UDim.new(0, 8)
 	layout.Parent = actions
 
-	sellButton = make("TextButton", {
+	sellButton = UIUtil.button({
 		Name = "SellMode",
 		Size = UDim2.new(1, 0, 0, 40),
-		BackgroundColor3 = colors.panelLight,
-		BorderSizePixel = 0,
-		AutoButtonColor = true,
-		Font = UIUtil.fontRegular,
+		Font = UIUtil.font,
 		Text = Locale.get("sell_mode"),
 		TextColor3 = colors.text,
 		TextSize = 15,
 		LayoutOrder = 1,
 		Parent = actions,
-	}) :: TextButton
-	UIUtil.corner(sellButton, 10)
+	}, colors.panelLight, colors.panel)
 
-	readyButton = make("TextButton", {
+	readyButton = UIUtil.button({
 		Name = "Ready",
-		Size = UDim2.new(1, 0, 0, 52),
-		BackgroundColor3 = colors.good,
-		BorderSizePixel = 0,
-		AutoButtonColor = true,
-		Font = UIUtil.font,
+		Size = UDim2.new(1, 0, 0, 54),
+		Font = UIUtil.fontDisplay,
 		Text = Locale.get("ready"),
-		TextColor3 = Color3.fromRGB(16, 24, 18),
+		TextColor3 = colors.textOnLight,
 		TextSize = 20,
 		LayoutOrder = 2,
 		Parent = actions,
-	}) :: TextButton
-	UIUtil.corner(readyButton, 10)
+	}, colors.good, colors.goodDeep)
 end
 
 local function buildOverlays(root: ScreenGui)
@@ -296,7 +282,6 @@ local function buildOverlays(root: ScreenGui)
 		Position = UDim2.new(0.5, 0, 0, 92),
 		Size = UDim2.new(0, 300, 0, 32),
 		BackgroundColor3 = colors.bad,
-		BackgroundTransparency = 0.1,
 		BorderSizePixel = 0,
 		Font = UIUtil.font,
 		Text = "",
@@ -305,7 +290,8 @@ local function buildOverlays(root: ScreenGui)
 		Visible = false,
 		Parent = root,
 	}) :: TextLabel
-	UIUtil.corner(toastLabel, 8)
+	UIUtil.corner(toastLabel, 10)
+	UIUtil.gradient(toastLabel, colors.bad, colors.badDeep)
 
 	leaveButton = make("TextButton", {
 		Name = "Leave",
@@ -329,24 +315,25 @@ local function buildOverlays(root: ScreenGui)
 		Name = "Banner",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(0.5, 0, 0.42, 0),
-		Size = UDim2.new(0, 460, 0, 196),
+		Size = UDim2.new(0, 470, 0, 200),
 		BackgroundColor3 = colors.panel,
-		BackgroundTransparency = 0.2,
 		BorderSizePixel = 0,
 		Visible = false,
 		Parent = root,
 	}) :: Frame
-	UIUtil.corner(bannerFrame, 14)
+	UIUtil.corner(bannerFrame, 18)
+	UIUtil.gradient(bannerFrame, colors.panelTop, colors.panel)
+	UIUtil.stroke(bannerFrame, 2, colors.accent, 0.6)
 
 	bannerTitle = make("TextLabel", {
 		Name = "Title",
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 0, 0, 18),
 		Size = UDim2.new(1, 0, 0, 56),
-		Font = UIUtil.font,
+		Font = UIUtil.fontDisplay,
 		Text = "",
 		TextColor3 = colors.text,
-		TextSize = 44,
+		TextSize = 46,
 		Parent = bannerFrame,
 	}) :: TextLabel
 
@@ -369,21 +356,18 @@ local function buildOverlays(root: ScreenGui)
 	actionsLayout.Parent = bannerActions
 
 	local function actionButton(name: string, label: string, order: number, primary: boolean): TextButton
-		local button = make("TextButton", {
+		local tone = if primary then colors.good else colors.panelLight
+		local toneDeep = if primary then colors.goodDeep else colors.panel
+		return UIUtil.button({
 			Name = name,
-			Size = UDim2.new(0, 138, 1, 0),
-			BackgroundColor3 = if primary then colors.good else colors.panelLight,
-			BorderSizePixel = 0,
-			AutoButtonColor = true,
+			Size = UDim2.new(0, 140, 1, 0),
 			Font = UIUtil.font,
 			Text = label,
-			TextColor3 = if primary then Color3.fromRGB(16, 24, 18) else colors.text,
+			TextColor3 = if primary then colors.textOnLight else colors.text,
 			TextSize = 15,
 			LayoutOrder = order,
 			Parent = bannerActions,
-		}) :: TextButton
-		UIUtil.corner(button, 8)
-		return button
+		}, tone, toneDeep)
 	end
 
 	retryButton = actionButton("Retry", Locale.get("result_retry"), 1, false)
@@ -456,7 +440,7 @@ local function refreshHud()
 	if editing then
 		readyButton.Text = if State.selfReady then Locale.get("cancel_ready") else Locale.get("ready")
 		readyButton.BackgroundColor3 = if State.selfReady then colors.panelLight else colors.good
-		readyButton.TextColor3 = if State.selfReady then colors.text else Color3.fromRGB(16, 24, 18)
+		readyButton.TextColor3 = if State.selfReady then colors.text else colors.textOnLight
 	end
 
 	if inLobby then

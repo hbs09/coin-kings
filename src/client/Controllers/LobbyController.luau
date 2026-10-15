@@ -82,51 +82,49 @@ function LobbyController.refresh()
 	else
 		pvpButton.Text = Locale.get("lobby_pvp")
 		pvpButton.BackgroundColor3 = colors.good
-		pvpButton.TextColor3 = Color3.fromRGB(16, 24, 18)
+		pvpButton.TextColor3 = colors.textOnLight
 	end
 end
 
 function LobbyController.init()
 	local root = UIController.getRoot()
 
-	panel = make("Frame", {
+	panel = UIUtil.panel({
 		Name = "Lobby",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.new(1, -40, 0, 330),
+		Size = UDim2.new(1, -40, 0, 342),
 		BackgroundColor3 = colors.panel,
-		BackgroundTransparency = 0.05,
 		BorderSizePixel = 0,
 		Visible = false,
 		Parent = root,
-	}) :: Frame
-	UIUtil.corner(panel, 14)
+	}, 18)
 	UIUtil.padding(panel, 18)
 
 	local constraint = Instance.new("UISizeConstraint")
-	constraint.MaxSize = Vector2.new(520, 330)
+	constraint.MaxSize = Vector2.new(520, 342)
 	constraint.Parent = panel
 
 	make("TextLabel", {
 		Name = "Title",
 		BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 28),
-		Font = UIUtil.font,
+		Font = UIUtil.fontDisplay,
 		Text = Locale.get("lobby_title"),
 		TextColor3 = colors.accent,
-		TextSize = 24,
+		TextSize = 28,
 		Parent = panel,
 	})
 
 	arenaLabel = make("TextLabel", {
 		Name = "Arena",
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 0, 0, 34),
-		Size = UDim2.new(1, 0, 0, 26),
+		Position = UDim2.new(0, 0, 0, 36),
+		Size = UDim2.new(1, 0, 0, 24),
 		Font = UIUtil.font,
 		Text = "",
 		TextColor3 = colors.text,
-		TextSize = 20,
+		TextSize = 19,
 		Parent = panel,
 	}) :: TextLabel
 
@@ -134,24 +132,25 @@ function LobbyController.init()
 		Name = "Trophies",
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 0, 0, 60),
-		Size = UDim2.new(1, 0, 0, 24),
-		Font = UIUtil.font,
+		Size = UDim2.new(1, 0, 0, 36),
+		Font = UIUtil.fontDisplay,
 		Text = "",
 		TextColor3 = colors.accent,
-		TextSize = 19,
+		TextSize = 32,
 		Parent = panel,
 	}) :: TextLabel
 
 	-- Barra de progresso para a arena seguinte.
 	local track = make("Frame", {
 		Name = "ProgressTrack",
-		Position = UDim2.new(0, 0, 0, 92),
-		Size = UDim2.new(1, 0, 0, 10),
-		BackgroundColor3 = Color3.fromRGB(18, 20, 26),
+		Position = UDim2.new(0, 0, 0, 100),
+		Size = UDim2.new(1, 0, 0, 12),
+		BackgroundColor3 = Color3.fromRGB(16, 18, 26),
 		BorderSizePixel = 0,
 		Parent = panel,
 	}) :: Frame
-	UIUtil.corner(track, 5)
+	UIUtil.corner(track, 6)
+	UIUtil.stroke(track, 1.5, colors.outline, 0.4)
 
 	progressFill = make("Frame", {
 		Name = "ProgressFill",
@@ -160,12 +159,13 @@ function LobbyController.init()
 		BorderSizePixel = 0,
 		Parent = track,
 	}) :: Frame
-	UIUtil.corner(progressFill, 5)
+	UIUtil.corner(progressFill, 6)
+	UIUtil.gradient(progressFill, colors.accent, colors.accentDeep)
 
 	nextArenaLabel = make("TextLabel", {
 		Name = "NextArena",
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 0, 0, 106),
+		Position = UDim2.new(0, 0, 0, 118),
 		Size = UDim2.new(1, 0, 0, 20),
 		Font = UIUtil.fontRegular,
 		Text = "",
@@ -177,7 +177,7 @@ function LobbyController.init()
 	recordLabel = make("TextLabel", {
 		Name = "Record",
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 0, 0, 130),
+		Position = UDim2.new(0, 0, 0, 142),
 		Size = UDim2.new(1, 0, 0, 20),
 		Font = UIUtil.fontRegular,
 		Text = "",
@@ -186,37 +186,29 @@ function LobbyController.init()
 		Parent = panel,
 	}) :: TextLabel
 
-	pvpButton = make("TextButton", {
+	pvpButton = UIUtil.button({
 		Name = "PlayOnline",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -46),
-		Size = UDim2.new(1, 0, 0, 54),
-		BackgroundColor3 = colors.good,
-		BorderSizePixel = 0,
-		AutoButtonColor = true,
-		Font = UIUtil.font,
+		Size = UDim2.new(1, 0, 0, 58),
+		Font = UIUtil.fontDisplay,
 		Text = Locale.get("lobby_pvp"),
-		TextColor3 = Color3.fromRGB(16, 24, 18),
-		TextSize = 19,
+		TextColor3 = colors.textOnLight,
+		TextSize = 21,
 		Parent = panel,
-	}) :: TextButton
-	UIUtil.corner(pvpButton, 10)
+	}, colors.good, colors.goodDeep)
 
-	tutorialButton = make("TextButton", {
+	tutorialButton = UIUtil.button({
 		Name = "ReplayTutorial",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, 0),
-		Size = UDim2.new(1, 0, 0, 36),
-		BackgroundColor3 = colors.panelLight,
-		BorderSizePixel = 0,
-		AutoButtonColor = true,
-		Font = UIUtil.fontRegular,
+		Size = UDim2.new(1, 0, 0, 38),
+		Font = UIUtil.font,
 		Text = Locale.get("lobby_replay_tutorial"),
-		TextColor3 = colors.textDim,
+		TextColor3 = colors.text,
 		TextSize = 15,
 		Parent = panel,
-	}) :: TextButton
-	UIUtil.corner(tutorialButton, 8)
+	}, colors.panelLight, colors.panel)
 end
 
 function LobbyController.start()

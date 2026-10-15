@@ -274,7 +274,7 @@ function SpellController.init()
 		Name = "Spells",
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -12, 1, -150),
-		Size = UDim2.new(0, 132, 0, 76),
+		Size = UDim2.new(0, 132, 0, 84),
 		BackgroundTransparency = 1,
 		Visible = false,
 		Parent = UIController.getRoot(),
@@ -290,18 +290,13 @@ function SpellController.init()
 	for index, spellId in Spells.order do
 		local def = Spells.get(spellId)
 		if def then
-			local button = make("TextButton", {
+			local button = UIUtil.button({
 				Name = `Spell_{spellId}`,
-				Size = UDim2.new(1, 0, 0, 34),
-				BackgroundColor3 = colors.panel,
-				BackgroundTransparency = 0.1,
-				BorderSizePixel = 0,
-				AutoButtonColor = true,
+				Size = UDim2.new(1, 0, 0, 38),
 				Text = "",
 				LayoutOrder = index,
 				Parent = bar,
-			}) :: TextButton
-			UIUtil.corner(button, 8)
+			}, colors.panelLight, colors.panel)
 
 			local label = make("TextLabel", {
 				Name = "Label",
@@ -311,6 +306,7 @@ function SpellController.init()
 				Text = "",
 				TextColor3 = colors.text,
 				TextSize = 14,
+				ZIndex = 2,
 				Parent = button,
 			}) :: TextLabel
 
